@@ -1203,23 +1203,62 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             return;
         }
 
-        Tween.stopAllByTarget(this.introContainer);
-        const introOpacity = this.introContainer.getComponent(UIOpacity);
+        // Stop intro tweens and hide all intro-related nodes so nothing remains visible.
+        const introNodes: Array<Node | null> = [
+            this.introContainer,
+            this.introBubble,
+            this.introNormalCharacter,
+            this.introCryCharacter,
+            ...this.introCharacters
+        ].filter(node => node && node.isValid) as Node[];
 
+        introNodes.forEach(node => {
+            Tween.stopAllByTarget(node);
+            node.active = false;
+            const opacity = node.getComponent(UIOpacity);
+            if (opacity) opacity.opacity = 0;
+        });
+
+        const introOpacity = this.introContainer.getComponent(UIOpacity);
         if (introOpacity) {
             tween(introOpacity)
                 .to(0.45, { opacity: 0 }, { easing: 'linear' })
                 .start();
         }
 
+        this.hideIntroSplashNode();
         this.scheduleOnce(() => {
             this.introContainer.active = false;
             if (introOpacity) {
                 introOpacity.opacity = 0;
             }
             GridController.isIntroPlaying = false;
+            this.hideIntroSplashNode();
             this.startGameplay();
         }, 0);
+    }
+
+    private hideIntroSplashNode() {
+        const canvas = director.getScene()?.getChildByPath("Canvas");
+        if (!canvas) return;
+
+        const splash = this.findNodeRecursively(canvas, "SpriteSplash");
+        if (!splash || !splash.isValid) return;
+
+        Tween.stopAllByTarget(splash);
+        splash.active = false;
+        const splashOpacity = splash.getComponent(UIOpacity);
+        if (splashOpacity) splashOpacity.opacity = 0;
+    }
+
+    private findNodeRecursively(parent: Node, name: string): Node | null {
+        if (!parent.isValid) return null;
+        if (parent.name === name) return parent;
+        for (const child of parent.children) {
+            const found = this.findNodeRecursively(child, name);
+            if (found) return found;
+        }
+        return null;
     }
 
     private performStartupSequence() {
