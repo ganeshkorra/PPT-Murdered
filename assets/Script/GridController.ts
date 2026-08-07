@@ -118,7 +118,7 @@ export class GridController extends Component {
     private static matchesMade: number = 0;
 
     private static globalTimerLabel: Label | null = null;
-    private static remainingTime: number = 60;
+    private static remainingTime: number = 70;
     private static isTimerStarted: boolean = false;
     private static isGameOver: boolean = false;
     private static shouldSlideInNextScene: boolean = false;
@@ -540,6 +540,8 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         const placementNode = this.placementDecorationNode?.isValid ? this.placementDecorationNode : null;
         const finalNode = this.decorationPlacementNode?.isValid ? this.decorationPlacementNode : null;
 
+        console.log(`[DECOR] playColumnCompletionDecorationTransition called for box='${this.node?.name || 'UNKNOWN'}' placement=${placementNode? 'yes':'no'} final=${finalNode? 'yes':'no'}`);
+
         const showFinalDecoration = () => {
             if (!finalNode) return;
 
@@ -587,6 +589,8 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
     private showColumnCompletionDecoration(columnKey: string) {
         const solvedBoxes = GridController.allBoxes.filter(box => box.isSolved && box.getColumnKey() === columnKey);
+        console.log(`[DECOR] showColumnCompletionDecoration called for column='${columnKey}' solvedBoxes=${solvedBoxes.length}`);
+
         solvedBoxes.forEach(box => {
             // A cell's placement decoration is shown as soon as that cell is solved.
             // Once the column is complete, replace it with the final decoration.
@@ -2062,7 +2066,10 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
             const columnKey = this.getColumnKey();
             const solvedCount = GridController.incrementColumnCompletion(columnKey);
             const columnSize = this.getColumnSize(columnKey);
-            const requiredCompletion = Math.max(2, Math.min(3, columnSize));
+            // Require full column completion (all cells) before showing final decoration
+            const requiredCompletion = columnSize;
+
+            console.log(`[DECOR] column='${columnKey}' solved=${solvedCount}/${columnSize}`);
 
             if (solvedCount >= requiredCompletion && !GridController.completedColumnDecorations.has(columnKey)) {
                 GridController.completedColumnDecorations.add(columnKey);
