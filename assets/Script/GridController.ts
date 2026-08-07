@@ -231,6 +231,30 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         return item.getComponent(Sprite)?.spriteFrame || null;
     }
 
+    private getAssignedItemIdentity(item: Node | null): string {
+        if (!item?.isValid) return "";
+
+        const directName = item.name?.trim() || "";
+        if (directName) return directName;
+
+        const candidateNames = ["ItemName", "itemName", "AssignedName", "assignedName", "Identity", "identity", "Value", "value"];
+        for (const candidateName of candidateNames) {
+            const child = item.getChildByName(candidateName);
+            if (!child?.isValid) continue;
+
+            const label = child.getComponent(Label);
+            if (label?.string?.trim()) return label.string.trim();
+
+            const childName = child.name?.trim();
+            if (childName) return childName;
+        }
+
+        const label = item.getComponent(Label);
+        if (label?.string?.trim()) return label.string.trim();
+
+        return "";
+    }
+
     private getSpriteKey(spriteFrame: SpriteFrame | null): string {
         if (!spriteFrame) return "";
 
@@ -346,7 +370,9 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     private getMenuItemCompletionKey(item: Node): string {
-        return this.getSpriteKey(this.getItemSpriteFrame(item)) || item.name || "";
+        return this.getAssignedItemIdentity(item)
+            || this.getSpriteKey(this.getItemSpriteFrame(item))
+            || item.name || "";
     }
 
     private getColumnKey(): string {
@@ -1846,7 +1872,8 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
     private showHandOnCorrectMenuItem() {
         const hand = GridController.globalHandNode;
         if (!hand || !this.selectionMenu) return;
-        const targetItem = this.selectionMenu.getChildByName(this.correctItemName);
+
+        const targetItem = this.getSelectionMenuItemByIdentity(this.correctItemName);
         if (targetItem && targetItem.active) {
             GridController.isHandShowing = true;
             hand.active = true;
@@ -1860,16 +1887,23 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
         }
     }
 
+    private getSelectionMenuItemByIdentity(identity: string): Node | null {
+        if (!this.selectionMenu?.isValid || !identity) return null;
+        return this.getSelectionMenuItems().find(item => this.getAssignedItemIdentity(item) === identity) || null;
+    }
+
     onMenuItemClicked(event: Event) {
         if (GridController.isIntroPlaying || GridController.isGameOver) return;
         event.propagationStopped = true;
         this.checkTapProgress(); 
 
         GridController.idleTimer = 0;
-          if (this.selectionTimerBar) Tween.stopAllByTarget(this.selectionTimerBar);
+        if (this.selectionTimerBar) Tween.stopAllByTarget(this.selectionTimerBar);
         const clickedNode = event.target as Node;
         if (!clickedNode.active || this.isMenuItemCompleted(clickedNode)) return;
-        if (clickedNode.name === this.correctItemName) this.handleSuccessMove(clickedNode);
+
+        const clickedIdentity = this.getAssignedItemIdentity(clickedNode);
+        if (clickedIdentity === this.correctItemName) this.handleSuccessMove(clickedNode);
         else this.handleIncorrectMove();
     }
 
@@ -1952,7 +1986,8 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
     flyNode.setWorldPosition(startPos);
     flyNode.setScale(sourceScale);
     
-    GridController.markItemCompleted(itemNode.name, this.getMenuItemCompletionKey(itemNode));
+    const itemIdentity = this.getAssignedItemIdentity(itemNode);
+    GridController.markItemCompleted(itemIdentity, this.getMenuItemCompletionKey(itemNode));
     itemNode.active = false;
     const button = itemNode.getComponent(Button);
     if (button) button.interactable = false;
