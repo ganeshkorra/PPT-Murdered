@@ -2,6 +2,7 @@ import { _decorator, Component, UIOpacity, instantiate, Size, Node, Vec2, Vec3, 
 const { ccclass, property } = _decorator;
 import { Analytics, analyticsEvents } from "./Analytics";
 import { CTAButtonHandler } from './CTAButtonHandler';
+import { PersonClue } from './personclue';
 
 @ccclass('GridController')
 export class GridController extends Component {
@@ -152,6 +153,10 @@ export class GridController extends Component {
     private static completedMenuItemKeys: Set<string> = new Set();
     private static completedColumnCounts: Map<string, number> = new Map();
     private static completedColumnDecorations: Set<string> = new Set();
+    // Hint cards controlled by the bottom PersonClue components.
+    private static personClueHints: Set<Node> = new Set();
+    private static selectedPersonNode: Node | null = null;
+    private static personOriginalScales: Map<Node, Vec3> = new Map();
 
     @property(AudioClip) bgmClip: AudioClip = null!;
     @property(AudioClip) clickBoxClip: AudioClip = null!;
@@ -247,6 +252,72 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         if (!this.selectionMenu) return [];
 
         return this.selectionMenu.children.filter(item => !!item.getComponent(Button));
+    }
+
+    /** Called by PersonClue during setup. GridController owns clue visibility. */
+    public registerPersonClues(clues: Node[]) {
+        clues.forEach(clue => {
+            if (!clue?.isValid) return;
+            GridController.personClueHints.add(clue);
+            clue.active = false;
+        });
+    }
+
+    /** Shows exactly one person clue and hides every other registered person clue. */
+    public showPersonClue(clue: Node, personNode: Node | null = null) {
+        if (!clue?.isValid) return;
+
+        GridController.personClueHints.forEach(personClue => {
+            if (personClue?.isValid) {
+                Tween.stopAllByTarget(personClue);
+                personClue.active = false;
+            }
+        });
+
+        const clueScale = this.getHintOriginalScale(clue);
+        const clueOpacity = clue.getComponent(UIOpacity) || clue.addComponent(UIOpacity);
+        clue.active = true;
+        clue.setScale(v3(clueScale.x * 0.97, clueScale.y * 0.97, clueScale.z));
+        clueOpacity.opacity = 0;
+        Tween.stopAllByTarget(clue);
+        tween(clue)
+            .to(0.22, { scale: clueScale }, { easing: 'sineOut' })
+            .call(() => {
+                tween(clue)
+                    .repeatForever(
+                        tween()
+                            .to(0.7, { scale: v3(clueScale.x * 1.025, clueScale.y * 1.025, clueScale.z) }, { easing: 'sineInOut' })
+                            .to(0.7, { scale: clueScale }, { easing: 'sineInOut' })
+                    )
+                    .start();
+            })
+            .start();
+        tween(clueOpacity).to(0.2, { opacity: 255 }, { easing: 'sineOut' }).start();
+
+        if (personNode?.isValid) {
+            const previousPerson = GridController.selectedPersonNode;
+            if (previousPerson?.isValid && previousPerson !== personNode) {
+                const previousScale = GridController.personOriginalScales.get(previousPerson) || previousPerson.scale.clone();
+                Tween.stopAllByTarget(previousPerson);
+                tween(previousPerson)
+                    .to(0.18, { scale: previousScale }, { easing: 'sineOut' })
+                    .start();
+            }
+
+            let personScale = GridController.personOriginalScales.get(personNode);
+            if (!personScale) {
+                personScale = personNode.scale.clone();
+                GridController.personOriginalScales.set(personNode, personScale);
+            }
+            const selectedScale = v3(personScale.x * 1.12, personScale.y * 1.12, personScale.z);
+            Tween.stopAllByTarget(personNode);
+            tween(personNode)
+                .to(0.2, { scale: v3(personScale.x * 1.16, personScale.y * 1.16, personScale.z) }, { easing: 'sineOut' })
+                .to(0.26, { scale: selectedScale }, { easing: 'sineInOut' })
+                .start();
+            GridController.selectedPersonNode = personNode;
+        }
+        GridController.idleTimer = 0;
     }
 
     private cacheSelectionMenuVisuals() {
@@ -1143,23 +1214,14 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
     private showInitialTutorial() {
         if (GridController.isGameOver || GridController.isTimerStarted) return;
-        const guideOwner = GridController.allBoxes.find(box => box.guideNode) || this;
+        const defaultGuideOwner = GridController.allBoxes.find(box => box.guideNode) || this;
+        // The configured target can be on any GridController, not only the first grid cell.
+        const tutorialConfigOwner = GridController.allBoxes.find(box => box.tutorialStartCell.trim().length > 0) || null;
+        const tutorialSetting = tutorialConfigOwner?.tutorialStartCell.trim() || "";
 
-        // If a specific hand node was attached in the Inspector, show the tutorial there.
-        const attachedHandBox = GridController.allBoxes.find(box => box.handNode?.isValid && !box.isSolved);
-        if (attachedHandBox) {
-            GridController.tutorialColumnKey = attachedHandBox.getColumnKey();
-            GridController.tutorialStep = 1;
-            GridController.tutorialCurrentBox = attachedHandBox;
-            this.showOpeningTutorialOverlay();
-            guideOwner.showGuideLabel();
-            attachedHandBox.showIdleHint(true);
-            return;
-        }
-
-        // If designer specified an explicit start cell (Inspector), try to use it.
-        if (this.tutorialStartCell && this.tutorialStartCell.trim().length > 0) {
-            const raw = this.tutorialStartCell.trim();
+        // An explicit Inspector target takes priority over the node that owns the hand graphic.
+        if (tutorialSetting.length > 0) {
+            const raw = tutorialSetting;
 
             // Case A: Comma-separated sequence (e.g. "5,1,9")
             if (raw.includes(",") && !raw.includes("/")) {
@@ -1168,7 +1230,6 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                     GridController.tutorialSequence = tokens;
                     GridController.tutorialSeqIndex = 0;
                     GridController.tutorialCurrentRepeat = 0;
-                    guideOwner.showGuideLabel();
                     this.startTutorialSequenceFromList();
                     return;
                 }
@@ -1191,15 +1252,29 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                 GridController.tutorialColumnKey = targetBox.getColumnKey();
                 GridController.tutorialStep = 1;
                 GridController.tutorialCurrentBox = targetBox;
+                const guideOwner = targetBox.guideNode ? targetBox : defaultGuideOwner;
                 guideOwner.showGuideLabel();
                 targetBox.showIdleHint(true);
                 return;
             }
         }
 
+        // If no explicit target exists, use the cell where the hand graphic was assigned.
+        const attachedHandBox = GridController.allBoxes.find(box => box.handNode?.isValid && !box.isSolved);
+        if (attachedHandBox) {
+            GridController.tutorialColumnKey = attachedHandBox.getColumnKey();
+            GridController.tutorialStep = 1;
+            GridController.tutorialCurrentBox = attachedHandBox;
+            this.showOpeningTutorialOverlay();
+            const guideOwner = attachedHandBox.guideNode ? attachedHandBox : defaultGuideOwner;
+            guideOwner.showGuideLabel();
+            attachedHandBox.showIdleHint(true);
+            return;
+        }
+
         // Fallback: show hand on any available hint target
         const handTarget = GridController.allBoxes.find(box => !box.isSolved && box.associatedHint && box.associatedHint.active) || this;
-        guideOwner.showGuideLabel();
+        defaultGuideOwner.showGuideLabel();
         if (handTarget.associatedHint && handTarget.associatedHint.active) handTarget.showIdleHint(true);
     }
 
@@ -1263,6 +1338,10 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                 }
                 // Ensure any global flags allow showing
                 GridController.isHandShowing = false;
+                const guideOwner = targetBox.guideNode
+                    ? targetBox
+                    : GridController.allBoxes.find(box => box.guideNode) || this;
+                guideOwner.showGuideLabel();
                 if (childSpecifier && targetBox) {
                     // If numeric -> treat as 1-based index
                     const maybeIndex = parseInt(childSpecifier);
@@ -2212,6 +2291,7 @@ private revealNewClues() {
             )
             .call(() => {
                 card.active = false;
+                PersonClue.notifyClueCompleted(card);
                 if (index === hintsToRemove.length - 1) {
                     // Hint repositioning is disabled for this experience.
                     if (!this.hiddenCluesToUnlock || this.hiddenCluesToUnlock.length === 0) {
@@ -2463,10 +2543,9 @@ private executeVoiceCall() {
     hand.setSiblingIndex(999);
     
     // Move hand to the attached hand node if available, otherwise use the grid box root.
-    const targetPos = this.handNode?.isValid ? this.handNode.worldPosition : this.node.worldPosition;
-    const xOffset = isTutorial ? 100 : 50;
-    const yOffset = isTutorial ? -100 : -80;
-    hand.setWorldPosition(v3(targetPos.x + xOffset, targetPos.y + yOffset, 0));
+    // `handNode` is the hand artwork, not the target marker. Always target this grid cell.
+    // Offset the hand artwork slightly down so its fingertip visually lands at cell centre.
+    hand.setWorldPosition(v3(this.node.worldPosition.x + 30, this.node.worldPosition.y - 85, this.node.worldPosition.z));
 
     hand.setScale(v3(0, 0, 0));
     tween(hand)
@@ -2510,9 +2589,7 @@ private executeVoiceCall() {
         hand.active = true;
         hand.setSiblingIndex(999);
 
-        const targetPos = target.worldPosition;
-        const xOffset = isTutorial ? 70 : 50;
-        hand.setWorldPosition(v3(targetPos.x + xOffset, targetPos.y - 200, 0));
+    hand.setWorldPosition(v3(target.worldPosition.x, target.worldPosition.y - 45, target.worldPosition.z));
 
         hand.setScale(v3(0, 0, 0));
         tween(hand)
