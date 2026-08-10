@@ -1435,7 +1435,14 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                     GridController.tutorialSequence = tokens;
                     GridController.tutorialSeqIndex = 0;
                     GridController.tutorialCurrentRepeat = 0;
-                    this.startTutorialSequenceFromList();
+                    const firstTarget = GridController.allBoxes.find(box => box.node.name === tokens[0] && !box.isSolved);
+                    if (firstTarget) {
+                        GridController.tutorialColumnKey = firstTarget.getColumnKey();
+                        GridController.tutorialCurrentBox = firstTarget;
+                        const guideOwner = firstTarget.guideNode ? firstTarget : defaultGuideOwner;
+                        guideOwner.showGuideLabel();
+                        firstTarget.showIdleHint(true);
+                    }
                     return;
                 }
             }
@@ -2171,6 +2178,33 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
     itemNode.active = false;
     const button = itemNode.getComponent(Button);
     if (button) button.interactable = false;
+
+    // Completion-driven tutorial sequence: solve this cell before moving the hand.
+    if (GridController.tutorialCurrentBox === this && GridController.tutorialSequence.length > 0) {
+        const nextIndex = GridController.tutorialSeqIndex + 1;
+        const nextName = GridController.tutorialSequence[nextIndex];
+        const nextBox = nextName
+            ? GridController.allBoxes.find(box => box.node.name === nextName && !box.isSolved) || null
+            : null;
+
+        if (nextBox) {
+            GridController.tutorialSeqIndex = nextIndex;
+            GridController.tutorialColumnKey = nextBox.getColumnKey();
+            GridController.tutorialCurrentBox = nextBox;
+            this.scheduleOnce(() => {
+                GridController.isHandShowing = false;
+                const guideOwner = nextBox.guideNode ? nextBox : GridController.allBoxes.find(box => box.guideNode) || this;
+                guideOwner.showGuideLabel();
+                nextBox.showIdleHint(true);
+            }, 0.7);
+        } else {
+            GridController.tutorialSequence = [];
+            GridController.tutorialColumnKey = null;
+            GridController.tutorialCurrentBox = null;
+            GridController.isHandShowing = false;
+            if (GridController.globalHandNode) GridController.globalHandNode.active = false;
+        }
+    }
 
     // Tutorial: advance hand to next cell in column or hide after second
     if (GridController.tutorialColumnKey) {
