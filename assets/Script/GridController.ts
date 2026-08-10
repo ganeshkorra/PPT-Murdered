@@ -123,7 +123,7 @@ export class GridController extends Component {
     private static matchesMade: number = 0;
 
     private static globalTimerLabel: Label | null = null;
-    private static remainingTime: number = 70;
+    private static remainingTime: number = 2;
     private static isTimerStarted: boolean = false;
     private static isGameOver: boolean = false;
     private static shouldSlideInNextScene: boolean = false;
@@ -968,7 +968,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         GridController.idleTimer += dt;
 
         if (GridController.idleTimer >= this.IDLE_THRESHOLD && !GridController.isHandShowing) {
-            if (GridController.activeBox && GridController.activeBox.selectionMenu.active) {
+            if (GridController.activeBox?.selectionMenu?.isValid && GridController.activeBox.selectionMenu.active) {
                 GridController.activeBox.showHandOnCorrectMenuItem();
                 GridController.activeBox.applyPulse(GridController.activeBox.node, true);
             }
@@ -1824,6 +1824,8 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
 
     onGridCellClicked(event: Event) {
         if (GridController.isIntroPlaying || GridController.isGameOver || this.isSolved) return;
+        // Empty cells intentionally have no selection menu and must not open one.
+        if (!this.selectionMenu?.isValid) return;
         // --- NEW: Track User Taps ---
         this.checkTapProgress();
 
