@@ -781,6 +781,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "1",
     "correctItemName": "1",
+    "noneSpriteFrame": null,
     "yearLabelBackground": null,
     "heartSprites": [],
     "brokenHeartFrame": null,
@@ -1764,6 +1765,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "2",
+    "noneSpriteFrame": null,
     "yearLabelBackground": null,
     "heartSprites": [
       {
@@ -11969,6 +11971,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "3",
+    "noneSpriteFrame": null,
     "yearLabelBackground": null,
     "heartSprites": [
       {
@@ -14508,6 +14511,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "4",
+    "noneSpriteFrame": null,
     "yearLabelBackground": null,
     "heartSprites": [
       {
@@ -17025,9 +17029,7 @@
     "_enabled": true,
     "__prefab": null,
     "timerLabel": null,
-    "selectionMenu": {
-      "__id__": 427
-    },
+    "selectionMenu": null,
     "associatedHint": null,
     "hintContainer": null,
     "decorationNode": null,
@@ -17049,7 +17051,11 @@
     "tutorialOverlay": null,
     "tutorialGlow": null,
     "tutorialStartCell": "",
-    "correctItemName": "5",
+    "correctItemName": "Empty",
+    "noneSpriteFrame": {
+      "__uuid__": "a9f7b9bb-634b-4898-9091-3ad499592f50@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "yearLabelBackground": null,
     "heartSprites": [
       {
@@ -19594,6 +19600,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "6",
+    "noneSpriteFrame": null,
     "yearLabelBackground": null,
     "heartSprites": [
       {
@@ -21893,6 +21900,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "7",
+    "noneSpriteFrame": null,
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -23460,6 +23468,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "8",
+    "noneSpriteFrame": null,
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -25274,6 +25283,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "9",
+    "noneSpriteFrame": null,
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -27573,6 +27583,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "10",
+    "noneSpriteFrame": null,
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -29108,9 +29119,7 @@
     "_enabled": true,
     "__prefab": null,
     "timerLabel": null,
-    "selectionMenu": {
-      "__id__": 763
-    },
+    "selectionMenu": null,
     "associatedHint": null,
     "hintContainer": null,
     "decorationNode": null,
@@ -29132,7 +29141,11 @@
     "tutorialOverlay": null,
     "tutorialGlow": null,
     "tutorialStartCell": "",
-    "correctItemName": "11",
+    "correctItemName": "Empty",
+    "noneSpriteFrame": {
+      "__uuid__": "a9f7b9bb-634b-4898-9091-3ad499592f50@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -30697,6 +30710,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "12",
+    "noneSpriteFrame": null,
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -32496,6 +32510,7 @@
     "tutorialGlow": null,
     "tutorialStartCell": "",
     "correctItemName": "13",
+    "noneSpriteFrame": null,
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -33694,9 +33709,7 @@
     "_enabled": true,
     "__prefab": null,
     "timerLabel": null,
-    "selectionMenu": {
-      "__id__": 887
-    },
+    "selectionMenu": null,
     "associatedHint": {
       "__id__": 86
     },
@@ -33722,7 +33735,11 @@
     "tutorialOverlay": null,
     "tutorialGlow": null,
     "tutorialStartCell": "",
-    "correctItemName": "14",
+    "correctItemName": "Empty",
+    "noneSpriteFrame": {
+      "__uuid__": "a9f7b9bb-634b-4898-9091-3ad499592f50@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -34676,9 +34693,7 @@
     "_enabled": true,
     "__prefab": null,
     "timerLabel": null,
-    "selectionMenu": {
-      "__id__": 913
-    },
+    "selectionMenu": null,
     "associatedHint": null,
     "hintContainer": null,
     "decorationNode": null,
@@ -34700,7 +34715,11 @@
     "tutorialOverlay": null,
     "tutorialGlow": null,
     "tutorialStartCell": "",
-    "correctItemName": "15",
+    "correctItemName": "Empty",
+    "noneSpriteFrame": {
+      "__uuid__": "a9f7b9bb-634b-4898-9091-3ad499592f50@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -35654,9 +35673,7 @@
     "_enabled": true,
     "__prefab": null,
     "timerLabel": null,
-    "selectionMenu": {
-      "__id__": 939
-    },
+    "selectionMenu": null,
     "associatedHint": {
       "__id__": 86
     },
@@ -35682,7 +35699,11 @@
     "tutorialOverlay": null,
     "tutorialGlow": null,
     "tutorialStartCell": "",
-    "correctItemName": "16",
+    "correctItemName": "Empty",
+    "noneSpriteFrame": {
+      "__uuid__": "a9f7b9bb-634b-4898-9091-3ad499592f50@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "yearLabelBackground": {
       "__uuid__": "7163aa2a-0b15-4aed-8412-af64d7a918a5@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -38421,7 +38442,7 @@
         "__id__": 1038
       }
     ],
-    "_active": true,
+    "_active": false,
     "_components": [
       {
         "__id__": 1041

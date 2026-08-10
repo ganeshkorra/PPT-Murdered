@@ -66,6 +66,11 @@ export class GridController extends Component {
     @property(String)
     correctItemName: string = "";
 
+    // Assign None.png on empty cells. It is revealed automatically once its
+    // row or column has at least two correctly placed answers.
+    @property(SpriteFrame)
+    noneSpriteFrame: SpriteFrame = null!;
+
     // The pill artwork used when a Year answer is placed in the grid.
     // Assign this only to the Year-row cells in the Inspector.
     @property(SpriteFrame)
@@ -152,6 +157,7 @@ export class GridController extends Component {
     private static completedItemNames: Set<string> = new Set();
     private static completedMenuItemKeys: Set<string> = new Set();
     private static completedColumnCounts: Map<string, number> = new Map();
+    private static completedRowCounts: Map<string, number> = new Map();
     private static completedColumnDecorations: Set<string> = new Set();
     // Hint cards controlled by the bottom PersonClue components.
     private static personClueHints: Set<Node> = new Set();
@@ -381,11 +387,55 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         return `${snappedX}`;
     }
 
+    private getRowKey(): string {
+        const localY = this.node.position ? this.node.position.y : this.node.worldPosition.y;
+        const snappedY = Math.round(localY / 50) * 50;
+        return `${snappedY}`;
+    }
+
     private static incrementColumnCompletion(columnKey: string): number {
         const current = GridController.completedColumnCounts.get(columnKey) || 0;
         const next = current + 1;
         GridController.completedColumnCounts.set(columnKey, next);
         return next;
+    }
+
+    private static incrementRowCompletion(rowKey: string): number {
+        const current = GridController.completedRowCounts.get(rowKey) || 0;
+        const next = current + 1;
+        GridController.completedRowCounts.set(rowKey, next);
+        return next;
+    }
+
+    private isEmptyCell(): boolean {
+        return this.correctItemName.trim().toLowerCase() === "empty";
+    }
+
+    private hideNoneSprite() {
+        if (!this.isEmptyCell()) return;
+
+        const sprite = this.node.getComponent(Sprite);
+        if (sprite) sprite.spriteFrame = null;
+    }
+
+    private revealNoneSprite() {
+        if (!this.isEmptyCell() || !this.noneSpriteFrame) return;
+
+        const sprite = this.node.getComponent(Sprite);
+        if (!sprite) return;
+
+        sprite.spriteFrame = this.noneSpriteFrame;
+        sprite.sizeMode = Sprite.SizeMode.TRIMMED;
+    }
+
+    private static revealEligibleEmptyCells() {
+        GridController.allBoxes.forEach(box => {
+            if (!box.isEmptyCell()) return;
+
+            const rowSolved = GridController.completedRowCounts.get(box.getRowKey()) || 0;
+            const columnSolved = GridController.completedColumnCounts.get(box.getColumnKey()) || 0;
+            if (rowSolved >= 2 || columnSolved >= 2) box.revealNoneSprite();
+        });
     }
 
     private getColumnSize(columnKey: string): number {
@@ -739,6 +789,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             GridController.completedItemNames.clear();
             GridController.completedMenuItemKeys.clear();
             GridController.completedColumnCounts.clear();
+            GridController.completedRowCounts.clear();
             GridController.completedColumnDecorations.clear();
             GridController.currentMistakes = 0;
             GridController.matchesMade = 0;
@@ -784,6 +835,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         }
 
         this.originalGridScale = this.node.scale.clone();
+        this.hideNoneSprite();
         this.designScale = this.node.scale.clone();
         const uiTrans = this.node.getComponent(UITransform);
         if (uiTrans) {
@@ -2104,6 +2156,8 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
             flyNode.name = "PlacedItem";
             const columnKey = this.getColumnKey();
             const solvedCount = GridController.incrementColumnCompletion(columnKey);
+            GridController.incrementRowCompletion(this.getRowKey());
+            GridController.revealEligibleEmptyCells();
             const columnSize = this.getColumnSize(columnKey);
             // Require full column completion (all cells) before showing final decoration
             const requiredCompletion = columnSize;
