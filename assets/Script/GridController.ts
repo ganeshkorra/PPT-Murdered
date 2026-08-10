@@ -123,7 +123,9 @@ export class GridController extends Component {
     private static matchesMade: number = 0;
 
     private static globalTimerLabel: Label | null = null;
-    private static remainingTime: number = 2;
+    private static remainingTime: number = 70;
+    // Keep the authored value above as the duration when the scene is restarted.
+    private static readonly initialTime: number = GridController.remainingTime;
     private static isTimerStarted: boolean = false;
     private static isGameOver: boolean = false;
     private static shouldSlideInNextScene: boolean = false;
@@ -555,6 +557,87 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         }
     }
 
+    private getPrisonNode(): Node | null {
+        const scene = director.getScene();
+        return scene?.getChildByPath("Canvas/Prison") || scene?.getChildByName("Prison") || null;
+    }
+
+    private preparePrisonSequence() {
+        const prison = this.getPrisonNode();
+        if (!prison?.isValid) return;
+
+        const upperRod = prison.getChildByName("UpperRod");
+        const downRod = prison.getChildByName("DownRod");
+        upperRod?.children.forEach(rod => rod.active = false);
+        if (upperRod?.isValid) upperRod.active = false;
+        if (downRod?.isValid) downRod.active = false;
+        const opacity = prison.getComponent(UIOpacity) || prison.addComponent(UIOpacity);
+        opacity.opacity = 255;
+        prison.active = false;
+    }
+
+    private revealPrisonNode(node: Node, duration: number, onComplete?: () => void) {
+        const targetScale = node.scale.clone();
+        Tween.stopAllByTarget(node);
+        node.active = true;
+        node.setScale(v3(0, 0, targetScale.z));
+        tween(node)
+            .to(duration, { scale: targetScale }, { easing: 'backOut' })
+            .call(() => onComplete?.())
+            .start();
+    }
+
+    /** Shows the captured culprit, closes the cell door one bar at a time, then continues to CTA. */
+    private playPrisonWinSequence(onComplete: () => void) {
+        const prison = this.getPrisonNode();
+        if (!prison?.isValid) {
+            onComplete();
+            return;
+        }
+
+        const upperRod = prison.getChildByName("UpperRod");
+        const downRod = prison.getChildByName("DownRod");
+        const prisonOpacity = prison.getComponent(UIOpacity) || prison.addComponent(UIOpacity);
+        prisonOpacity.opacity = 0;
+        prison.active = true;
+        tween(prisonOpacity).to(0.25, { opacity: 255 }, { easing: 'sineOut' }).start();
+
+        if (!upperRod?.isValid || !downRod?.isValid) {
+            this.scheduleOnce(onComplete, 0.5);
+            return;
+        }
+
+        upperRod.children.forEach(rod => rod.active = false);
+        upperRod.active = false;
+        downRod.active = false;
+
+        this.scheduleOnce(() => {
+            this.revealPrisonNode(upperRod, 0.28, () => {
+                const rods = upperRod.children
+                    .filter(rod => /^Rod\d+$/i.test(rod.name))
+                    .sort((a, b) => Number(a.name.replace(/\D/g, "")) - Number(b.name.replace(/\D/g, "")));
+
+                rods.forEach((rod, index) => {
+                    this.scheduleOnce(() => this.revealPrisonNode(rod, 0.16), index * 0.1);
+                });
+
+                const downRodDelay = rods.length * 0.1 + 0.12;
+                this.scheduleOnce(() => {
+                    this.revealPrisonNode(downRod, 0.25, () => {
+                        tween(prisonOpacity)
+                            .to(0.4, { opacity: 0 }, { easing: 'sineIn' })
+                            .call(() => {
+                                if (prison.isValid) prison.active = false;
+                                prisonOpacity.opacity = 255;
+                                onComplete();
+                            })
+                            .start();
+                    });
+                }, downRodDelay);
+            });
+        }, );
+    }
+
     private revealPlacementDecoration() {
         if (!this.placementDecorationNode?.isValid) return;
 
@@ -590,7 +673,6 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         const placementNode = this.placementDecorationNode?.isValid ? this.placementDecorationNode : null;
         const finalNode = this.decorationPlacementNode?.isValid ? this.decorationPlacementNode : null;
 
-        console.log(`[DECOR] playColumnCompletionDecorationTransition called for box='${this.node?.name || 'UNKNOWN'}' placement=${placementNode? 'yes':'no'} final=${finalNode? 'yes':'no'}`);
 
         const showFinalDecoration = () => {
             if (!finalNode) return;
@@ -639,7 +721,6 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
     private showColumnCompletionDecoration(columnKey: string) {
         const solvedBoxes = GridController.allBoxes.filter(box => box.isSolved && box.getColumnKey() === columnKey);
-        console.log(`[DECOR] showColumnCompletionDecoration called for column='${columnKey}' solvedBoxes=${solvedBoxes.length}`);
 
         solvedBoxes.forEach(box => {
             // A cell's placement decoration is shown as soon as that cell is solved.
@@ -773,10 +854,8 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         if (!this.enableTapTriggerCTA || GridController.isGameOver) return;
 
         GridController.globalUserTapCount++;
-        console.log(`[USER TAPS] ${GridController.globalUserTapCount} / ${this.maxTapsBeforeCTA}`);
 
         if (GridController.globalUserTapCount >= this.maxTapsBeforeCTA) {
-            console.warn("[CTA TRIGGER] Tap limit reached. Sending user to End Screen.");
             this.handleGameOver("TAP_LIMIT");
         }
     }
@@ -795,7 +874,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             GridController.matchesMade = 0;
             GridController.activeBox = null;
             GridController.timerMaster = null;
-            GridController.remainingTime = 60;
+            GridController.remainingTime = GridController.initialTime;
             GridController.isTimerStarted = false;
             GridController.isGameOver = false;
             GridController.isIntroPlaying = false;
@@ -826,16 +905,15 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             if (Analytics.instance) {
                 // 1. Fire LOADED first to signal assets are ready
                 Analytics.instance.dispatchEvent(analyticsEvents.LOADED);
-                console.log("[Analytics] LOADED event fired");
                 
                 // 2. Fire DISPLAYED after LOADED
                 Analytics.instance.dispatchEvent(analyticsEvents.DISPLAYED);
-                console.log("[Analytics] DISPLAYED event fired on game load");
             }
         }
 
         this.originalGridScale = this.node.scale.clone();
         this.hideNoneSprite();
+        this.preparePrisonSequence();
         this.designScale = this.node.scale.clone();
         const uiTrans = this.node.getComponent(UITransform);
         if (uiTrans) {
@@ -930,7 +1008,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         if (this.clickHandSprite) GridController.globalHandClick = this.clickHandSprite;
         if (this.timerLabel) {
             GridController.globalTimerLabel = this.timerLabel;
-            GridController.globalTimerLabel.string = `Time: 60`;
+            GridController.globalTimerLabel.string = `Time: ${Math.ceil(GridController.remainingTime)}`;
         }
         if (this.selectionMenu) this.selectionMenu.active = false;
         if (this.decorationNode) this.decorationNode.active = false;
@@ -1442,7 +1520,6 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                 targetBox = GridController.allBoxes.find(b => b.node.name === gridName && !b.isSolved) || null;
             }
 
-            console.log(`[TUTORIAL] token='${rawToken}' -> resolved grid='${targetBox ? targetBox.node.name : 'NONE'}' (parent='${targetBox && targetBox.node.parent ? targetBox.node.parent.name : 'N/A'}')`);
             if (!targetBox) {
                 // Skip missing/solved and continue
                 playStep(index + 1);
@@ -2164,7 +2241,6 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
             // Require full column completion (all cells) before showing final decoration
             const requiredCompletion = columnSize;
 
-            console.log(`[DECOR] column='${columnKey}' solved=${solvedCount}/${columnSize}`);
 
             if (solvedCount >= requiredCompletion && !GridController.completedColumnDecorations.has(columnKey)) {
                 GridController.completedColumnDecorations.add(columnKey);
@@ -2357,7 +2433,6 @@ private revealNewClues() {
 
     // --- LOGIC FOR NODE 9 (NO HINTS TO CLEAR) ---
     if (hintTargets.length === 0) { 
-        console.log(`[GRID] No hints to clear for box ${this.node.name}. Proceeding to reveal logic...`);
         onComplete(); 
         if (!this.hiddenCluesToUnlock || this.hiddenCluesToUnlock.length === 0) {
             this.playNextAvailableVoice();
@@ -2372,6 +2447,10 @@ private revealNewClues() {
         );
         return !isStillNeededByOther;
     });
+
+    // A player can solve a clue without opening its person card. Complete that
+    // owner immediately, rather than waiting for the card's fly-out animation.
+    hintsToRemove.forEach(hint => PersonClue.hidePersonForCompletedClue(hint));
 
     // A shared hint stays on screen until every grid cell using it is solved.
     // Pulse it while it is still needed; only completed hints receive a right mark.
@@ -2469,7 +2548,6 @@ private executeVoiceCall() {
     );
 
     if (nextBox && GridController.fxSource) {
-        console.log(`[AUDIO] Playing voice for: ${nextBox.node.name}`);
         GridController.fxSource.stop(); // Stop current before starting new
         GridController.fxSource.clip = nextBox.hintVoiceClip;
         GridController.fxSource.volume = 1.0;
@@ -2575,7 +2653,6 @@ private executeVoiceCall() {
             .map(box => box.nextSceneName.trim())
             .find(sceneName => sceneName.length > 0) || "";
         if (reason === "WIN" && nextSceneName) {
-            console.log(`[LEVEL COMPLETE] Loading ${nextSceneName}.`);
             this.scheduleOnce(() => this.loadNextSceneWithTransition(nextSceneName), 0.8);
             return;
         }
@@ -2583,7 +2660,17 @@ private executeVoiceCall() {
         // CTA remains for a failure in either level and for a win in the final level.
         Analytics.instance?.dispatchEvent(reason === "WIN" ? analyticsEvents.CHALLENGE_SOLVED : analyticsEvents.CHALLENGE_FAILED);
 
+        if (reason === "WIN") {
+            this.playPrisonWinSequence(() => this.triggerGameEndCTA(reason));
+            return;
+        }
+
         this.triggerGameEndCTA(reason);
+    }
+
+    /** Called by the suspect marked as guilty to use the normal winning CTA flow. */
+    public completeAsWin() {
+        this.handleGameOver("WIN");
     }
 
     private loadNextSceneWithTransition(sceneName: string) {
@@ -2605,19 +2692,19 @@ private executeVoiceCall() {
     }
 
     private triggerGameEndCTA(reason: string) {
-        const delay = reason === "WIN" ? 1.3 : 0.15;
+        // The prison sequence must be completely gone before the end card appears.
+        if (reason === "WIN") this.preparePrisonSequence();
+        const delay = reason === "WIN" ? 0 : 0;
         this.scheduleOnce(() => {
             const endScreen = GridController.globalCtaEndScreen || this.ctaEndScreen || director.getScene()?.getChildByPath("Canvas/CTA");
 
             if (endScreen) {
-                console.log(`[GAME OVER CTA] ${reason}. Showing CTA screen.`);
                 Analytics.instance?.dispatchEvent(analyticsEvents.ENDCARD_SHOWN);
                 endScreen.active = true;
                 endScreen.setScale(v3(0, 0, 0));
                 endScreen.setSiblingIndex(999);
                 tween(endScreen).to(0.5, { scale: v3(1, 1, 1) }, { easing: 'backOut' }).start();
             } else {
-                console.warn("[GAME OVER CTA] CTA screen not found. Falling back to direct redirect.");
                 const ctaButtonNode = director.getScene()?.getChildByPath("Canvas/CTA/play_now_pink-removebg-preview");
                 const ctaHandler = ctaButtonNode?.getComponent(CTAButtonHandler);
                 if (ctaHandler) {

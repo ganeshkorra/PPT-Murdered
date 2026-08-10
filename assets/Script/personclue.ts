@@ -74,13 +74,26 @@ export class PersonClue extends Component {
         if (nextClue) {
             const gridController = this.getGridController();
             if (gridController) gridController.showPersonClue(nextClue, this.node);
-            else console.warn(`[PersonClue] Assign Grid Controller Node for ${this.node.name}.`);
+            // Grid Controller assignment is validated in the editor.
         }
     }
 
     /** Called by GridController after its completed clue-card animation finishes. */
     public static notifyClueCompleted(clue: Node) {
-        if (!clue?.isValid) return;
+        const completedOwner = PersonClue.hidePersonForCompletedClue(clue);
+        if (!completedOwner) return;
+
+        // Match the reference flow: immediately reveal the next clue rather than
+        // waiting for the player to tap another portrait.
+        const nextPerson = !completedOwner.areAllCluesComplete()
+            ? completedOwner
+            : Array.from(PersonClue.people).find(person => person.node.active && !person.areAllCluesComplete()) || null;
+        if (nextPerson) nextPerson.selectAndShowNextClue();
+    }
+
+    /** Marks a clue complete and hides its owner even when that clue was never opened. */
+    public static hidePersonForCompletedClue(clue: Node): PersonClue | null {
+        if (!clue?.isValid) return null;
         PersonClue.completedClues.add(clue);
         let completedOwner: PersonClue | null = null;
 
@@ -94,13 +107,7 @@ export class PersonClue extends Component {
                 if (PersonClue.selectedPerson === person) PersonClue.selectedPerson = null;
             }
         });
-
-        // Match the reference flow: immediately reveal the next clue rather than
-        // waiting for the player to tap another portrait.
-        const nextPerson = completedOwner && !completedOwner.areAllCluesComplete()
-            ? completedOwner
-            : Array.from(PersonClue.people).find(person => person.node.active && !person.areAllCluesComplete()) || null;
-        if (nextPerson) nextPerson.selectAndShowNextClue();
+        return completedOwner;
     }
 
     private getNextUnfinishedClue(): Node | null {
