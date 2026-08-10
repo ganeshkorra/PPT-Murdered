@@ -170,6 +170,7 @@ export class GridController extends Component {
     @property(AudioClip) clickBoxClip: AudioClip = null!;
     @property(AudioClip) winMatchClip: AudioClip = null!;
     @property(AudioClip) wrongMatchClip: AudioClip = null!;
+    @property(AudioClip) prisonSequenceClip: AudioClip = null!;
 
     private static bgmSource: AudioSource = null!;
     private static fxSource: AudioSource = null!;
@@ -593,6 +594,11 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         if (!prison?.isValid) {
             onComplete();
             return;
+        }
+
+        const prisonAudio = GridController.allBoxes.find(box => box.prisonSequenceClip)?.prisonSequenceClip;
+        if (prisonAudio && GridController.fxSource) {
+            GridController.fxSource.playOneShot(prisonAudio, 1);
         }
 
         const upperRod = prison.getChildByName("UpperRod");
