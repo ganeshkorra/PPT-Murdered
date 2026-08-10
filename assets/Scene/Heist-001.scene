@@ -828,7 +828,7 @@
       "__expectedType__": "cc.AudioClip"
     },
     "hintVoiceClip": {
-      "__uuid__": "572e6a9c-6edb-470a-acc2-6a3c1626ef0b",
+      "__uuid__": "aa41fb3f-badd-4c54-83a1-ea87ba5540d2",
       "__expectedType__": "cc.AudioClip"
     },
     "rightNode": null,
@@ -1812,7 +1812,7 @@
       "__expectedType__": "cc.AudioClip"
     },
     "hintVoiceClip": {
-      "__uuid__": "c8ec7a2e-42c7-4427-b0d8-f29916821f43",
+      "__uuid__": "d430ad09-daed-4b5c-ad6d-3b2c06ecab76",
       "__expectedType__": "cc.AudioClip"
     },
     "rightNode": null,
@@ -12017,7 +12017,10 @@
       "__uuid__": "b5db7f06-7910-437e-920a-5ce39e2cd37b",
       "__expectedType__": "cc.AudioClip"
     },
-    "hintVoiceClip": null,
+    "hintVoiceClip": {
+      "__uuid__": "04f8bc60-c1ec-4d82-b6aa-5b257a9a4973",
+      "__expectedType__": "cc.AudioClip"
+    },
     "rightNode": null,
     "selectionTimerBar": null,
     "highlightBar": null,
@@ -14558,7 +14561,7 @@
       "__expectedType__": "cc.AudioClip"
     },
     "hintVoiceClip": {
-      "__uuid__": "2df74eef-e449-4361-9337-e2c5662d7197",
+      "__uuid__": "6a3fe6bc-584d-4651-a04a-e0657ae21e39",
       "__expectedType__": "cc.AudioClip"
     },
     "rightNode": null,
@@ -19103,7 +19106,7 @@
       "__expectedType__": "cc.AudioClip"
     },
     "hintVoiceClip": {
-      "__uuid__": "86c8d7ec-50b8-437e-8252-d88ce8163d6f",
+      "__uuid__": "d430ad09-daed-4b5c-ad6d-3b2c06ecab76",
       "__expectedType__": "cc.AudioClip"
     },
     "rightNode": null,
@@ -20870,7 +20873,7 @@
       "__expectedType__": "cc.AudioClip"
     },
     "hintVoiceClip": {
-      "__uuid__": "572e6a9c-6edb-470a-acc2-6a3c1626ef0b",
+      "__uuid__": "04f8bc60-c1ec-4d82-b6aa-5b257a9a4973",
       "__expectedType__": "cc.AudioClip"
     },
     "rightNode": null,
@@ -22147,7 +22150,7 @@
       "__expectedType__": "cc.AudioClip"
     },
     "hintVoiceClip": {
-      "__uuid__": "ef61190f-666b-4d48-abe7-cdfdd889720f",
+      "__uuid__": "6a3fe6bc-584d-4651-a04a-e0657ae21e39",
       "__expectedType__": "cc.AudioClip"
     },
     "rightNode": null,
@@ -23676,7 +23679,10 @@
       "__uuid__": "b5db7f06-7910-437e-920a-5ce39e2cd37b",
       "__expectedType__": "cc.AudioClip"
     },
-    "hintVoiceClip": null,
+    "hintVoiceClip": {
+      "__uuid__": "aa41fb3f-badd-4c54-83a1-ea87ba5540d2",
+      "__expectedType__": "cc.AudioClip"
+    },
     "rightNode": null,
     "selectionTimerBar": null,
     "highlightBar": null,
@@ -25970,7 +25976,10 @@
       "__uuid__": "b5db7f06-7910-437e-920a-5ce39e2cd37b",
       "__expectedType__": "cc.AudioClip"
     },
-    "hintVoiceClip": null,
+    "hintVoiceClip": {
+      "__uuid__": "d430ad09-daed-4b5c-ad6d-3b2c06ecab76",
+      "__expectedType__": "cc.AudioClip"
+    },
     "rightNode": null,
     "selectionTimerBar": null,
     "highlightBar": null,
@@ -28515,7 +28524,10 @@
       "__uuid__": "b5db7f06-7910-437e-920a-5ce39e2cd37b",
       "__expectedType__": "cc.AudioClip"
     },
-    "hintVoiceClip": null,
+    "hintVoiceClip": {
+      "__uuid__": "6a3fe6bc-584d-4651-a04a-e0657ae21e39",
+      "__expectedType__": "cc.AudioClip"
+    },
     "rightNode": null,
     "selectionTimerBar": null,
     "highlightBar": null,
@@ -30024,7 +30036,10 @@
       "__uuid__": "b5db7f06-7910-437e-920a-5ce39e2cd37b",
       "__expectedType__": "cc.AudioClip"
     },
-    "hintVoiceClip": null,
+    "hintVoiceClip": {
+      "__uuid__": "45424305-33c7-4cb4-8e36-23bb6e62c0fc",
+      "__expectedType__": "cc.AudioClip"
+    },
     "rightNode": null,
     "selectionTimerBar": null,
     "highlightBar": null,
