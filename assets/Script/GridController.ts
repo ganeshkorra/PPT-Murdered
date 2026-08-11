@@ -1133,8 +1133,10 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         this.scheduleOnce(() => {
             this.setupIntroEmotionState();
             this.animateIntroCharacters();
-            this.scheduleOnce(() => this.switchToCryIntro(), 0.0);
-            this.scheduleOnce(() => this.hideIntroAndStartGame(), 3);
+            this.showIntroBubbleReveal();
+            // Keep the normal character visible before switching emotions.
+            this.scheduleOnce(() => this.switchToCryIntro(), 2.0);
+            this.scheduleOnce(() => this.hideIntroAndStartGame(), 5);
         }, 0);
     }
 
@@ -1241,8 +1243,8 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     private switchToCryIntro() {
-        // Ensure normal fades out first; then show cry, then bubble after a short delay
-        const startCryAndBubble = () => {
+        // The bubble is already visible and stays on screen while emotions switch.
+        const startCry = () => {
             if (this.introCryCharacter) {
                 this.introCryCharacter.active = true;
                 let cryOpacity = this.introCryCharacter.getComponent(UIOpacity);
@@ -1254,25 +1256,22 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                     .to(0.45, { opacity: 255 }, { easing: 'linear' })
                     .start();
             }
-
-            // Show bubble a little after the intro state starts.
-            this.scheduleOnce(() => this.showIntroBubbleReveal(), 0.18);
         };
 
         if (this.introNormalCharacter) {
             let normalOpacity = this.introNormalCharacter.getComponent(UIOpacity);
             if (!normalOpacity) normalOpacity = this.introNormalCharacter.addComponent(UIOpacity);
             tween(normalOpacity)
-                .to(0, { opacity: 0 }, { easing: 'sineInOut' })
+                .to(0.3, { opacity: 0 }, { easing: 'sineInOut' })
                 .call(() => {
                     if (this.introNormalCharacter) this.introNormalCharacter.active = false;
-                    // Start cry and bubble after normal has fully faded
-                    startCryAndBubble();
+                    // Start cry after normal has fully faded.
+                    startCry();
                 })
                 .start();
         } else {
-            // No normal character present — start cry immediately
-            startCryAndBubble();
+            // No normal character present — start cry immediately.
+            startCry();
         }
 
         // if (this.introBubbleLabel) {
