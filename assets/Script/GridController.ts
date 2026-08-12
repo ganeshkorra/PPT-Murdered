@@ -228,6 +228,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     private placementDecorOriginalSize: { width: number, height: number } = { width: 0, height: 0 };
     private decorationPlacementOriginalScale: Vec3 = v3(1, 1, 1);
     private introBubbleTextPosition: Vec3 | null = null;
+    private currentBubbleGuide: Node | null = null;
     private menuItemScales: Map<string, Vec3> = new Map();
     private menuItemVisuals: Map<Node, Node> = new Map();
     private menuItemVisualOffsets: Map<Node, Vec3> = new Map();
@@ -2774,6 +2775,20 @@ private executeVoiceCall() {
                 });
                 box.refreshSelectionMenuItems();
             }
+            // Fade out and destroy the bubble guide on all boxes
+            if (box.currentBubbleGuide?.isValid) {
+                Tween.stopAllByTarget(box.currentBubbleGuide);
+                const bubbleOpacity = box.currentBubbleGuide.getComponent(UIOpacity);
+                if (bubbleOpacity) {
+                    tween(bubbleOpacity)
+                        .to(0.25, { opacity: 0 }, { easing: 'sineIn' })
+                        .call(() => { if (box.currentBubbleGuide?.isValid) box.currentBubbleGuide.destroy(); })
+                        .start();
+                } else {
+                    box.currentBubbleGuide.destroy();
+                }
+                box.currentBubbleGuide = null;
+            }
         });
         if (GridController.globalHandNode) {
             Tween.stopAllByTarget(GridController.globalHandNode);
@@ -2861,7 +2876,89 @@ private executeVoiceCall() {
             .start();
     }
 
+private playBubbleGuideSequence() {
+    // Clean up any existing bubble
+    if (this.currentBubbleGuide?.isValid) {
+        Tween.stopAllByTarget(this.currentBubbleGuide);
+        this.currentBubbleGuide.destroy();
+    }
+
+    // Create a temporary bubble effect on the target cell
+    const cellTransform = this.node.getComponent(UITransform);
+    if (!cellTransform) return;
+
+    // Create the rounded square border
+    const bubbleFrame = new Node('BubbleGuide');
+    this.node.addChild(bubbleFrame);
+    bubbleFrame.setPosition(v3(0, 0, 0));
+    this.currentBubbleGuide = bubbleFrame;
+
+    const frameGraphics = bubbleFrame.addComponent(Graphics);
+    frameGraphics.lineWidth = 8;
+    frameGraphics.strokeColor = new Color(255, 140, 60, 255); // Orange
+    const cornerRadius = 20;
+    frameGraphics.roundRect(
+        -cellTransform.contentSize.width / 2,
+        -cellTransform.contentSize.height / 2,
+        cellTransform.contentSize.width,
+        cellTransform.contentSize.height,
+        cornerRadius
+    );
+    frameGraphics.stroke();
+
+    bubbleFrame.setScale(v3(0.8, 0.8, 1));
+    const frameOpacity = bubbleFrame.addComponent(UIOpacity);
+    frameOpacity.opacity = 0;
+
+    // Animate frame in
+    tween(bubbleFrame)
+        .to(0.3, { scale: v3(1, 1, 1) }, { easing: 'sineOut' })
+        .start();
+    tween(frameOpacity)
+        .to(0.3, { opacity: 255 }, { easing: 'sineOut' })
+        .start();
+
+    // Create the circular highlight
+    const highlightCircle = new Node('HighlightCircle');
+    bubbleFrame.addChild(highlightCircle);
+    highlightCircle.setPosition(v3(0, 0, 0));
+
+    const circleGraphics = highlightCircle.addComponent(Graphics);
+    circleGraphics.lineWidth = 6;
+    circleGraphics.strokeColor = new Color(200, 200, 200, 180); // Light gray/white outline
+    const circleRadius = Math.min(cellTransform.contentSize.width, cellTransform.contentSize.height) / 2.2;
+    circleGraphics.circle(0, 0, circleRadius);
+    circleGraphics.stroke();
+
+    highlightCircle.setScale(v3(0.3, 0.3, 1));
+    const circleOpacity = highlightCircle.addComponent(UIOpacity);
+    circleOpacity.opacity = 0;
+
+    // Animate circle in with a delay
+    tween(highlightCircle)
+        .delay(0.15)
+        .to(0.35, { scale: v3(1, 1, 1) }, { easing: 'sineOut' })
+        .start();
+    tween(circleOpacity)
+        .delay(0.15)
+        .to(0.35, { opacity: 200 }, { easing: 'sineOut' })
+        .start();
+
+    // Loop the bubble animation (scale pulse) while hand is showing
+    tween(bubbleFrame)
+        .delay(0.8)
+        .repeatForever(
+            tween()
+                .to(0.6, { scale: v3(1.08, 1.08, 1) }, { easing: 'sineInOut' })
+                .to(0.6, { scale: v3(1, 1, 1) }, { easing: 'sineInOut' })
+        )
+        .start();
+}
+
 private playHandAnimation() {
+    // Play the bubble guide sequence first
+    this.playBubbleGuideSequence();
+
     const hand = GridController.globalHandNode;
     if (!hand || !hand.isValid) return;
     const handSprite = hand.getComponent(Sprite);
