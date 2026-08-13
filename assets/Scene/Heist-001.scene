@@ -31719,7 +31719,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "727726c4-e956-4329-abc7-0248e7f7be7c@f9941",
+      "__uuid__": "adb4b017-5c58-4964-af77-6bc33926872a@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -31752,9 +31752,7 @@
         "__id__": 41
       }
     ],
-    "gridControllerNode": {
-      "__id__": 13
-    },
+    "gridControllerNode": null,
     "selectedFrame": null,
     "selectionDotColor": {
       "__type__": "cc.Color",
@@ -31861,7 +31859,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "609ab373-4703-4d95-a03a-0406037a8c72@f9941",
+      "__uuid__": "1651638f-2815-4334-b6a6-25c5f43f626c@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -32001,7 +31999,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "69c89b35-5098-4fdf-85ed-442de1691da8@f9941",
+      "__uuid__": "b8c5199e-c71f-4d44-956c-64e459227983@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -32281,7 +32279,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "d103f73c-f38d-4c0a-9fb3-05862298346b@f9941",
+      "__uuid__": "0a7a07e7-354a-4dc8-bd58-ffa4174b6573@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
