@@ -148,6 +148,11 @@ export class GridController extends Component {
     private static tutorialRepeatTimes: number = 2; // how many times to show per node
     private static tutorialCurrentRepeat: number = 0;
     private readonly IDLE_THRESHOLD: number = 7;
+    
+    // Person-hand tutorial phase (NEW): Sequential step before grid tutorial
+    private static personTutorialPhaseActive: boolean = false;
+    private static personTutorialPhaseComplete: boolean = false;
+    private static personTutorialNode: Node | null = null;
 
     private static allBoxes: GridController[] = [];
     private static globalHandNode: Node | null = null;
@@ -1083,6 +1088,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 }
 
    private runEntrySequence() {
+    console.log("[Tutorial] runEntrySequence START");
     // Only animate boxes that are NOT already solved (useful if restarting)
     const boxesToBlink = GridController.allBoxes
         .filter(box => !box.isSolved)
@@ -1103,13 +1109,12 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         }, index * blinkInterval);
     });
 
-    // Show tutorial items (Hand/Dotted frame) AFTER all blinks are finished
+    // NEW: Start person tutorial phase first (blocking step)
     const totalTime = (boxesToBlink.length * blinkInterval) + 0;
+    console.log("[Tutorial] Scheduling person tutorial phase in", totalTime, "seconds");
     this.scheduleOnce(() => {
-        const firstBox = GridController.allBoxes.find(b => b.node.name === "1") || boxesToBlink[0];
-        if (firstBox && !firstBox.isSolved) {
-            firstBox.showInitialTutorial(); 
-        }
+        console.log("[Tutorial] CALLING startPersonTutorialPhase");
+        this.startPersonTutorialPhase();
     }, totalTime);
 }
 
@@ -1445,7 +1450,144 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         this.runEntrySequence();
     }
 
+    // NEW: Start the person tutorial phase (sequential timeline step - blocks grid tutorial)
+    private startPersonTutorialPhase() {
+        const personNode = this.findFirstActivePersonNode();
+        console.log("[PersonTutorial] startPersonTutorialPhase - Found person node:", personNode?.name, "Valid:", personNode?.isValid);
+        console.log("[PersonTutorial] globalHandNode valid:", GridController.globalHandNode?.isValid);
+        
+        if (!personNode) {
+            // No person node; skip to grid tutorial immediately
+            console.log("[PersonTutorial] No person node found, skipping to grid tutorial");
+            this.startGridTutorialPhase();
+            return;
+        }
+
+        // Ensure existing grid tutorial visuals are hidden while person tutorial runs
+        GridController.allBoxes.forEach(box => {
+            try { box.hideSelectedFrame(); } catch (e) {}
+            try { Tween.stopAllByTarget(box.node); } catch (e) {}
+            try { if (box.selectionMenu) box.selectionMenu.active = false; } catch (e) {}
+            try { const sp = box.node.getComponent(Sprite); if (sp) Tween.stopAllByTarget(sp); } catch (e) {}
+            try { if (box.currentBubbleGuide?.isValid) { Tween.stopAllByTarget(box.currentBubbleGuide); box.currentBubbleGuide.destroy(); box.currentBubbleGuide = null; } } catch (e) {}
+        });
+        
+        // SET THE FLAG - THIS IS CRITICAL
+        GridController.personTutorialPhaseActive = true;
+        GridController.personTutorialPhaseComplete = false;
+        GridController.personTutorialNode = personNode;
+        console.log("[PersonTutorial] FLAG SET: personTutorialPhaseActive = TRUE");
+        console.log("[PersonTutorial] Showing hand on person node:", personNode.name);
+        this.showHandOnPersonNode(personNode);
+    }
+    
+    // NEW: Find first active PersonClue node
+    private findFirstActivePersonNode(): Node | null {
+        const scene = director.getScene();
+        if (!scene?.isValid) {
+            console.log("[PersonTutorial] Scene not valid");
+            return null;
+        }
+        
+        let firstPerson: Node | null = null;
+        const allPersonClues: Node[] = [];
+        
+        // Search for nodes with PersonClue component
+        scene.walk((node: Node) => {
+            if (node.isValid && node.getComponent('PersonClue')) {
+                allPersonClues.push(node);
+                console.log("[PersonTutorial] Found PersonClue component on node:", node.name, "Active:", node.active);
+            }
+        });
+        
+        console.log("[PersonTutorial] Total PersonClue nodes found:", allPersonClues.length);
+        
+        // Get the first active one
+        firstPerson = allPersonClues.find(n => n.active) || null;
+        console.log("[PersonTutorial] First active PersonClue:", firstPerson?.name);
+        
+        return firstPerson;
+    }
+    
+    // NEW: Show hand on person node
+    private showHandOnPersonNode(personNode: Node) {
+        if (!GridController.globalHandNode?.isValid || !personNode?.isValid) {
+            console.log("[PersonTutorial] showHandOnPersonNode - FAILED: globalHandNode valid:", GridController.globalHandNode?.isValid, "personNode valid:", personNode?.isValid);
+            return;
+        }
+        
+        const hand = GridController.globalHandNode;
+        console.log("[PersonTutorial] Showing hand on person node:", personNode.name);
+        console.log("[PersonTutorial] Person world position:", personNode.worldPosition);
+        
+        // Use world position like the existing grid tutorial does
+        hand.active = true;
+        hand.setSiblingIndex(999);
+        hand.setWorldPosition(v3(personNode.worldPosition.x + 30, personNode.worldPosition.y - 65, personNode.worldPosition.z));
+        
+        // Start from scale 0 and animate to full size
+        hand.setScale(v3(0, 0, 0));
+        Tween.stopAllByTarget(hand);
+        tween(hand)
+            .to(0.3, { scale: GridController.initialHandScale }, { easing: 'backOut' })
+            .call(() => this.playHandAnimation())
+            .start();
+        
+        console.log("[PersonTutorial] Hand is now VISIBLE and animating on person node");
+    }
+    
+    // NEW: Called when person is tapped during tutorial (via PersonClue)
+    public completePersonTutorialPhase(personNode: Node) {
+        console.log("[PersonTutorial] completePersonTutorialPhase CALLED - person tapped:", personNode?.name);
+        if (!GridController.personTutorialPhaseActive) {
+            console.log("[PersonTutorial] Person tutorial phase is NOT active, ignoring tap");
+            return;
+        }
+        
+        // Hide person tutorial hand
+        if (GridController.globalHandNode?.isValid) {
+            console.log("[PersonTutorial] Stopping hand animation and hiding hand");
+            Tween.stopAllByTarget(GridController.globalHandNode);
+            GridController.globalHandNode.active = false;
+        }
+        
+        // Mark person tutorial as complete
+        GridController.personTutorialPhaseActive = false;
+        GridController.personTutorialPhaseComplete = true;
+        GridController.personTutorialNode = null;
+        console.log("[PersonTutorial] Person tutorial phase COMPLETE - starting grid tutorial phase in 0.1s");
+        
+        // Start the grid tutorial phase next
+        this.scheduleOnce(() => {
+            console.log("[PersonTutorial] NOW calling startGridTutorialPhase");
+            this.startGridTutorialPhase();
+        }, 0.1);
+    }
+    
+    // NEW: Start the grid tutorial phase (after person tutorial is complete)
+    private startGridTutorialPhase() {
+        // Ensure person tutorial phase is fully disabled before starting grid tutorial
+        GridController.personTutorialPhaseActive = false;
+        GridController.personTutorialPhaseComplete = true;
+        GridController.personTutorialNode = null;
+        GridController.isHandShowing = false;
+        
+        console.log("[Tutorial] startGridTutorialPhase - person phase disabled, now starting grid tutorial");
+        
+        const firstBox = GridController.allBoxes.find(b => b.node.name === "1") || GridController.allBoxes.find(b => !b.isSolved);
+        if (firstBox && !firstBox.isSolved) {
+            firstBox.showInitialTutorial();
+        }
+    }
+
     private showInitialTutorial() {
+        // NEW: If person tutorial phase is active, don't start grid tutorial yet
+        if (GridController.personTutorialPhaseActive) {
+            console.log("[Tutorial] showInitialTutorial SKIPPED - personTutorialPhaseActive = TRUE");
+            return;
+        }
+        console.log("[Tutorial] showInitialTutorial PROCEEDING - personTutorialPhaseActive = FALSE");
+        
         if (GridController.isGameOver || GridController.isTimerStarted) return;
         const defaultGuideOwner = GridController.allBoxes.find(box => box.guideNode) || this;
         // The configured target can be on any GridController, not only the first grid cell.
@@ -1622,6 +1764,12 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     private showGuideLabel() {
+        // NEW: Block guide label during person tutorial phase
+        if (GridController.personTutorialPhaseActive) {
+            console.log("[Tutorial] showGuideLabel SKIPPED - person tutorial phase is active");
+            return;
+        }
+        
         if (!this.guideNode) return;
 
         Tween.stopAllByTarget(this.guideNode);
@@ -1704,6 +1852,13 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
     // The updated frame logic (make sure it's public if called from external sequences)
 public showSelectedFrame() {
+    // NEW: Block frame drawing during person tutorial phase
+    if (GridController.personTutorialPhaseActive) {
+        console.log("[Tutorial] showSelectedFrame BLOCKED - personTutorialPhaseActive = TRUE");
+        return;
+    }
+    
+    console.log("[Tutorial] showSelectedFrame PROCEEDING - personTutorialPhaseActive = FALSE for node:", this.node.name);
     GridController.allBoxes.forEach(box => box.hideSelectedFrame());
 
     const uiTrans = this.node.getComponent(UITransform);
@@ -1923,6 +2078,13 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
 //     }
 // }
     private applyPulse(targetNode: Node, isOn: boolean) {
+        // NEW: Block pulse effect during person tutorial phase
+        if (GridController.personTutorialPhaseActive) {
+            console.log("[Tutorial] applyPulse BLOCKED - personTutorialPhaseActive = TRUE");
+            return;
+        }
+        console.log("[Tutorial] applyPulse PROCEEDING - personTutorialPhaseActive = FALSE for node:", targetNode.name);
+        
         Tween.stopAllByTarget(targetNode);
         const isHint = targetNode === this.associatedHint || targetNode.parent?.name === "Hints";
         const baseScale = isHint ? this.originalHintScale : this.originalGridScale;
@@ -1941,6 +2103,13 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
     }
 
     onGridCellClicked(event: Event) {
+        // NEW: Block all grid interactions during person tutorial phase
+        if (GridController.personTutorialPhaseActive) {
+            console.log("[Tutorial] onGridCellClicked BLOCKED - personTutorialPhaseActive = TRUE");
+            return;
+        }
+        console.log("[Tutorial] onGridCellClicked PROCEEDING - personTutorialPhaseActive = FALSE");
+        
         if (GridController.isIntroPlaying || GridController.isGameOver || this.isSolved) return;
         // Empty cells intentionally have no selection menu and must not open one.
         if (!this.selectionMenu?.isValid) return;
@@ -2827,6 +2996,13 @@ private executeVoiceCall() {
 
     
   private showIdleHint(isTutorial: boolean = false) {
+    // NEW: Block idle hint display during person tutorial phase
+    if (GridController.personTutorialPhaseActive) {
+        console.log("[Tutorial] showIdleHint SKIPPED - personTutorialPhaseActive = TRUE");
+        return;
+    }
+    console.log("[Tutorial] showIdleHint PROCEEDING - personTutorialPhaseActive = FALSE");
+    
     if (GridController.isGameOver || !GridController.globalHandNode) return;
     if (GridController.isHandShowing) return;
 
@@ -2905,6 +3081,17 @@ private executeVoiceCall() {
     }
 
 private playBubbleGuideSequence() {
+    if (GridController.personTutorialPhaseActive) {
+        console.log("[Tutorial] playBubbleGuideSequence BLOCKED - person tutorial still active");
+        // Also remove any stale bubble that may already exist on the current grid cell.
+        if (this.currentBubbleGuide?.isValid) {
+            Tween.stopAllByTarget(this.currentBubbleGuide);
+            this.currentBubbleGuide.destroy();
+            this.currentBubbleGuide = null;
+        }
+        return;
+    }
+
     // Clean up any existing bubble
     if (this.currentBubbleGuide?.isValid) {
         Tween.stopAllByTarget(this.currentBubbleGuide);
@@ -2993,11 +3180,17 @@ private playBubbleGuideSequence() {
 }
 
 private playHandAnimation() {
-    // Play the bubble guide sequence first
-    this.playBubbleGuideSequence();
-
     const hand = GridController.globalHandNode;
     if (!hand || !hand.isValid) return;
+
+    if (GridController.personTutorialPhaseActive) {
+        console.log("[Tutorial] playHandAnimation - person tutorial active; suppressing grid bubble guide but keeping hand animation");
+    } else {
+        // Play the bubble guide sequence first for normal grid tutorial
+        this.playBubbleGuideSequence();
+    }
+
+    // Keep the hand animation alive even during the person tutorial hand phase.
     const handSprite = hand.getComponent(Sprite);
     const startScale = GridController.initialHandScale.clone();
     const clickScale = v3(startScale.x * 0.82, startScale.y * 0.82, 1);
@@ -3015,7 +3208,7 @@ private playHandAnimation() {
                 .call(() => {
                     // 1. Swap to click sprite
                     if (handSprite?.isValid) handSprite.spriteFrame = GridController.globalHandClick!;
-                    
+
                     // 2. TRIGGER THE YELLOW RIPPLE HERE
                     // Place the ripple just to the right of the hand so it feels attached to the tap
                     const fingerTipPos = v3(hand.worldPosition.x - 20, hand.worldPosition.y + 45, 0);

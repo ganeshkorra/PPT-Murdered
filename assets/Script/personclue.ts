@@ -59,6 +59,14 @@ export class PersonClue extends Component {
     /** Assign this method to a Button Click Event if this node has no Button component. */
     public onPersonPressed() {
         if (!this.node.active || this.areAllCluesComplete()) return;
+        
+        // NEW: If person tutorial phase is active, complete it and show hint
+        const gridController = this.getGridController();
+        const personPhaseActive = (gridController as any)?.constructor?.personTutorialPhaseActive;
+        if (personPhaseActive) {
+            gridController?.['completePersonTutorialPhase']?.(this.node);
+        }
+        
         this.selectAndShowNextClue();
     }
 
