@@ -461,35 +461,35 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     /** Mirrors the reference game's persistent, soft-green solved-cell state. */
-    private showSolvedCellHighlight() {
-        const cellTransform = this.node.getComponent(UITransform);
-        if (!cellTransform) return;
+    // private showSolvedCellHighlight() {
+    //     const cellTransform = this.node.getComponent(UITransform);
+    //     if (!cellTransform) return;
 
-        let highlight = this.node.getChildByName("SolvedCellHighlight");
-        if (!highlight) {
-            highlight = new Node("SolvedCellHighlight");
-            this.node.addChild(highlight);
-            highlight.addComponent(UITransform).setContentSize(cellTransform.contentSize);
+    //     let highlight = this.node.getChildByName("SolvedCellHighlight");
+    //     if (!highlight) {
+    //         highlight = new Node("SolvedCellHighlight");
+    //         this.node.addChild(highlight);
+    //         highlight.addComponent(UITransform).setContentSize(cellTransform.contentSize);
 
-            const graphics = highlight.addComponent(Graphics);
-            const { width, height } = cellTransform.contentSize;
-            graphics.fillColor = new Color(194, 247, 182, 155);
-            graphics.rect(-width / 2, -height / 2, width, height);
-            graphics.fill();
+    //         const graphics = highlight.addComponent(Graphics);
+    //         const { width, height } = cellTransform.contentSize;
+    //         graphics.fillColor = new Color(194, 247, 182, 155);
+    //         graphics.rect(-width / 2, -height / 2, width, height);
+    //         graphics.fill();
 
-            // It must sit behind the placed answer and any existing cell art.
-            highlight.setSiblingIndex(0);
-        }
+    //         // It must sit behind the placed answer and any existing cell art.
+    //         highlight.setSiblingIndex(0);
+    //     }
 
-        const opacity = highlight.getComponent(UIOpacity) || highlight.addComponent(UIOpacity);
-        Tween.stopAllByTarget(highlight);
-        Tween.stopAllByTarget(opacity);
-        highlight.active = true;
-        highlight.setScale(v3(0.84, 0.84, 1));
-        opacity.opacity = 0;
-        tween(highlight).to(0.24, { scale: v3(1, 1, 1) }, { easing: 'backOut' }).start();
-        tween(opacity).to(0.18, { opacity: 255 }).start();
-    }
+    //     const opacity = highlight.getComponent(UIOpacity) || highlight.addComponent(UIOpacity);
+    //     Tween.stopAllByTarget(highlight);
+    //     Tween.stopAllByTarget(opacity);
+    //     highlight.active = true;
+    //     highlight.setScale(v3(0.84, 0.84, 1));
+    //     opacity.opacity = 0;
+    //     tween(highlight).to(0.24, { scale: v3(1, 1, 1) }, { easing: 'backOut' }).start();
+    //     tween(opacity).to(0.18, { opacity: 255 }).start();
+    // }
 
     private showOpeningTutorialOverlay() {
         const overlay = GridController.openingTutorialOverlay
@@ -2266,7 +2266,7 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
         ).call(() => {
             this.hideSelectedFrame();
             this.isSolved = true;
-            this.showSolvedCellHighlight();
+            // this.showSolvedCellHighlight();
             // The placement decoration is already visible from game start.
             // Keep the final column decoration hidden until the column completes.
             if (this.placementDecorationNode?.isValid) this.placementDecorationNode.active = true;
@@ -2924,7 +2924,7 @@ private playBubbleGuideSequence() {
     highlightCircle.setPosition(v3(0, 0, 0));
 
     const circleGraphics = highlightCircle.addComponent(Graphics);
-    circleGraphics.lineWidth = 6;
+    circleGraphics.lineWidth = 10;
     circleGraphics.strokeColor = new Color(200, 200, 200, 180); // Light gray/white outline
     const circleRadius = Math.min(cellTransform.contentSize.width, cellTransform.contentSize.height) / 2.2;
     circleGraphics.circle(0, 0, circleRadius);
@@ -2949,7 +2949,7 @@ private playBubbleGuideSequence() {
         .delay(0.8)
         .repeatForever(
             tween()
-                .to(0.6, { scale: v3(1.16, 1.16, 1) }, { easing: 'sineInOut' })
+                .to(0.6, { scale: v3(1.3, 1.3, 1) }, { easing: 'sineInOut' })
                 .to(0.6, { scale: v3(1, 1, 1) }, { easing: 'sineInOut' })
         )
         .start();
