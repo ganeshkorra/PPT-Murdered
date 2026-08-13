@@ -1254,7 +1254,10 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
                 // Fade in cry
                 tween(cryOpacity)
-                    .to(0.45, { opacity: 255 }, { easing: 'linear' })
+                    .to(0, { opacity: 255 }, { easing: 'linear' })
+                    .call(() => {
+                        this.startChildFloatLoop(this.introCryCharacter, 14, 0.75, 0.18);
+                    })
                     .start();
             }
         };
@@ -1290,6 +1293,28 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         // }
     }
 
+    private startChildFloatLoop(rootNode: Node | null, amplitude: number = 14, duration: number = 0.75, delay: number = 0) {
+        if (!rootNode?.isValid) return;
+
+        const childNodes = rootNode.children.filter(child => child?.isValid);
+        if (childNodes.length === 0) return;
+
+        childNodes.forEach((child, index) => {
+            const basePos = child.position.clone();
+            const perNodeDelay = delay * index;
+
+            Tween.stopAllByTarget(child);
+            tween(child)
+                .delay(perNodeDelay)
+                .repeatForever(
+                    tween()
+                        .to(duration, { position: v3(basePos.x, basePos.y + amplitude, basePos.z) }, { easing: 'sineInOut' })
+                        .to(duration, { position: basePos }, { easing: 'sineInOut' })
+                )
+                .start();
+        });
+    }
+
     private animateIntroCharacters() {
         if (!this.introCharacters || this.introCharacters.length === 0) return;
 
@@ -1309,18 +1334,21 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             opacity.opacity = 0;
         });
 
-        const duration = 0.0;
-        const delayStep = 0;
+        const duration = 0.45;
+        const delayStep = 0.14;
 
         charNodes.forEach((charNode, index) => {
-            const finalPos = charNode.position.clone();
+            const startPos = charNode.position.clone();
+            const finalPos = startPos.clone();
             finalPos.y += slideOffset;
 
             this.scheduleOnce(() => {
                 Tween.stopAllByTarget(charNode);
                 const opacity = charNode.getComponent(UIOpacity);
+
                 tween(charNode)
                     .to(duration, { position: finalPos }, { easing: 'backOut' })
+                    .call(() => this.startChildFloatLoop(charNode, 12, 0.7, 0.06))
                     .start();
 
                 if (opacity) {
