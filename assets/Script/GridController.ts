@@ -1555,13 +1555,13 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         GridController.personTutorialPhaseActive = false;
         GridController.personTutorialPhaseComplete = true;
         GridController.personTutorialNode = null;
-        console.log("[PersonTutorial] Person tutorial phase COMPLETE - starting grid tutorial phase in 0.1s");
+        console.log("[PersonTutorial] Person tutorial phase COMPLETE - starting grid tutorial phase in 0.03s");
         
-        // Start the grid tutorial phase next
+        // Show the clue immediately on tap; start the grid tutorial a moment later.
         this.scheduleOnce(() => {
             console.log("[PersonTutorial] NOW calling startGridTutorialPhase");
             this.startGridTutorialPhase();
-        }, 0.1);
+        }, 0.53);
     }
     
     // NEW: Start the grid tutorial phase (after person tutorial is complete)

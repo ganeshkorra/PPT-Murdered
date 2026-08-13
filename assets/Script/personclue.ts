@@ -36,6 +36,7 @@ export class PersonClue extends Component {
         PersonClue.people.add(this);
         this.selectedFrame && (this.selectedFrame.active = false);
         this.createSelectionDot();
+        this.hideCluesUntilTapped();
 
         const button = this.getComponent(Button);
         this.usesButton = !!button;
@@ -45,7 +46,9 @@ export class PersonClue extends Component {
 
     start() {
         this.getGridController()?.registerPersonClues(this.clues);
-        if (this.selectOnStart && this.node.active) this.onPersonPressed();
+        this.hideCluesUntilTapped();
+        // Keep all clue cards hidden until the player taps this person.
+        // Auto-select-on-start is intentionally disabled for this tutorial flow.
     }
 
     onDestroy() {
@@ -56,18 +59,26 @@ export class PersonClue extends Component {
         if (PersonClue.selectedPerson === this) PersonClue.selectedPerson = null;
     }
 
+    private hideCluesUntilTapped() {
+        this.clues.forEach(clue => {
+            if (!clue?.isValid) return;
+            Tween.stopAllByTarget(clue);
+            clue.active = false;
+        });
+    }
+
     /** Assign this method to a Button Click Event if this node has no Button component. */
     public onPersonPressed() {
         if (!this.node.active || this.areAllCluesComplete()) return;
-        
-        // NEW: If person tutorial phase is active, complete it and show hint
+
+        // Show the clue immediately on tap, then trigger the tutorial step after a tiny delay.
+        this.selectAndShowNextClue();
+
         const gridController = this.getGridController();
         const personPhaseActive = (gridController as any)?.constructor?.personTutorialPhaseActive;
         if (personPhaseActive) {
             gridController?.['completePersonTutorialPhase']?.(this.node);
         }
-        
-        this.selectAndShowNextClue();
     }
 
     private selectAndShowNextClue() {
