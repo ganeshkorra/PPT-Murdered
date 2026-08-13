@@ -2894,7 +2894,7 @@ private playBubbleGuideSequence() {
     this.currentBubbleGuide = bubbleFrame;
 
     const frameGraphics = bubbleFrame.addComponent(Graphics);
-    frameGraphics.lineWidth = 8;
+    frameGraphics.lineWidth = 12;
     frameGraphics.strokeColor = new Color(255, 140, 60, 255); // Orange
     const cornerRadius = 20;
     frameGraphics.roundRect(
@@ -2944,13 +2944,22 @@ private playBubbleGuideSequence() {
         .to(0.35, { opacity: 200 }, { easing: 'sineOut' })
         .start();
 
-    // Loop the bubble animation (scale pulse) while hand is showing
-    tween(bubbleFrame)
+    // Pulse the circular guide instead of the square frame while the hand is showing.
+    tween(highlightCircle)
         .delay(0.8)
         .repeatForever(
             tween()
-                .to(0.6, { scale: v3(1.08, 1.08, 1) }, { easing: 'sineInOut' })
+                .to(0.6, { scale: v3(1.16, 1.16, 1) }, { easing: 'sineInOut' })
                 .to(0.6, { scale: v3(1, 1, 1) }, { easing: 'sineInOut' })
+        )
+        .start();
+
+    tween(circleOpacity)
+        .delay(0.8)
+        .repeatForever(
+            tween()
+                .to(0.6, { opacity: 220 }, { easing: 'sineInOut' })
+                .to(0.6, { opacity: 120 }, { easing: 'sineInOut' })
         )
         .start();
 }
