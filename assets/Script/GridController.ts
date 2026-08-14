@@ -57,6 +57,14 @@ export class GridController extends Component {
     @property(Node)
     tutorialGlow: Node = null!;
 
+    // Assign authored text nodes in the Inspector. The script only controls
+    // visibility and never overwrites their Label text or styling.
+    @property(Node)
+    tutorialInstructionNode: Node = null!;
+
+    @property(Node)
+    chooseMatchingItemInstructionNode: Node = null!;
+
     @property(String)
     tutorialStartCell: string = ""; // e.g. "5" or "5,1" or "5/1" to target a specific grid node
 
@@ -160,6 +168,10 @@ export class GridController extends Component {
     private static globalHandClick: SpriteFrame | null = null;
     private static openingTutorialOverlay: Node | null = null;
     private static openingTutorialGlow: Node | null = null;
+    private static globalTutorialInstructionNode: Node | null = null;
+    private static globalChooseMatchingItemInstructionNode: Node | null = null;
+    private static tutorialInstructionOriginalScale: Vec3 = v3(1, 1, 1);
+    private static tutorialInstructionOriginalOpacity: number = 255;
     private static hintOriginalScales: Map<Node, Vec3> = new Map();
     private static completedItemNames: Set<string> = new Set();
     private static completedMenuItemKeys: Set<string> = new Set();
@@ -217,6 +229,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
     private originalGridScale: Vec3 = v3(1, 1, 1);
     private isEmptyCellShaking: boolean = false;
+    private isNoneRevealed: boolean = false;
     private originalHintScale: Vec3 = v3(0.565, 0.565, 0.565);
     private hintDesignSize: { width: number, height: number } = { width: 0, height: 0 };
     private originalMenuItemScale: Vec3 = v3(1, 1, 1);
@@ -429,13 +442,57 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     private revealNoneSprite() {
-        if (!this.isEmptyCell() || !this.noneSpriteFrame) return;
+        if (!this.isEmptyCell() || !this.noneSpriteFrame || this.isNoneRevealed) return;
 
         const sprite = this.node.getComponent(Sprite);
-        if (!sprite) return;
+        const cellTransform = this.node.getComponent(UITransform);
+        if (!sprite || !cellTransform) return;
 
-        sprite.spriteFrame = this.noneSpriteFrame;
-        sprite.sizeMode = Sprite.SizeMode.TRIMMED;
+        this.isNoneRevealed = true;
+
+        // The None artwork has a transparent background. Build two child layers
+        // so the cell can fade to neutral gray without tinting or hiding the icon.
+        sprite.spriteFrame = null;
+
+        const backgroundNode = new Node("NoneCellBackground");
+        this.node.addChild(backgroundNode);
+        backgroundNode.setPosition(Vec3.ZERO);
+        backgroundNode.setSiblingIndex(0);
+
+        const backgroundTransform = backgroundNode.addComponent(UITransform);
+        backgroundTransform.setContentSize(cellTransform.contentSize);
+
+        const backgroundGraphics = backgroundNode.addComponent(Graphics);
+        const inset = 3;
+        const width = Math.max(0, cellTransform.contentSize.width - inset * 2);
+        const height = Math.max(0, cellTransform.contentSize.height - inset * 2);
+        backgroundGraphics.fillColor = new Color(216, 212, 204, 255); // #D8D4CC
+        backgroundGraphics.rect(-width / 2, -height / 2, width, height);
+        backgroundGraphics.fill();
+
+        const backgroundOpacity = backgroundNode.addComponent(UIOpacity);
+        backgroundOpacity.opacity = 0;
+
+        const iconNode = new Node("NoneCellIcon");
+        this.node.addChild(iconNode);
+        iconNode.setPosition(Vec3.ZERO);
+        iconNode.setSiblingIndex(this.node.children.length - 1);
+        iconNode.addComponent(UITransform);
+
+        const iconSprite = iconNode.addComponent(Sprite);
+        iconSprite.spriteFrame = this.noneSpriteFrame;
+        iconSprite.sizeMode = Sprite.SizeMode.TRIMMED;
+
+        const iconOpacity = iconNode.addComponent(UIOpacity);
+        iconOpacity.opacity = 0;
+
+        tween(backgroundOpacity)
+            .to(0.3, { opacity: 255 }, { easing: 'sineOut' })
+            .start();
+        tween(iconOpacity)
+            .delay(0.08)
+            .to(0.24, { opacity: 255 }, { easing: 'sineOut' })
+            .start();
     }
 
     private static revealEligibleEmptyCells() {
@@ -446,6 +503,90 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             const columnSolved = GridController.completedColumnCounts.get(box.getColumnKey()) || 0;
             if (rowSolved >= 2 || columnSolved >= 2) box.revealNoneSprite();
         });
+    }
+
+    private static setInstructionNodeVisible(node: Node | null, visible: boolean) {
+        if (!node?.isValid) return;
+        node.active = visible;
+    }
+
+    private static showTapSuspectInstruction() {
+        const node = GridController.globalTutorialInstructionNode;
+        if (node?.isValid) {
+            const originalScale = GridController.tutorialInstructionOriginalScale.clone();
+            const opacity = node.getComponent(UIOpacity) || node.addComponent(UIOpacity);
+
+            Tween.stopAllByTarget(node);
+            Tween.stopAllByTarget(opacity);
+            node.active = true;
+            node.setScale(v3(originalScale.x * 0.96, originalScale.y * 0.96, originalScale.z));
+            opacity.opacity = 0;
+
+            tween(opacity)
+                .to(0.24, { opacity: GridController.tutorialInstructionOriginalOpacity }, { easing: 'sineOut' })
+                .start();
+
+            tween(node)
+                .to(0.24, { scale: originalScale }, { easing: 'sineOut' })
+                .call(() => {
+                    if (!node.isValid || !node.active) return;
+                    const pulseScale = v3(originalScale.x * 1.035, originalScale.y * 1.035, originalScale.z);
+                    tween(node)
+                        .repeatForever(
+                            tween()
+                                .to(0.65, { scale: pulseScale }, { easing: 'sineInOut' })
+                                .to(0.65, { scale: originalScale }, { easing: 'sineInOut' })
+                        )
+                        .start();
+                })
+                .start();
+        }
+        GridController.setInstructionNodeVisible(GridController.globalChooseMatchingItemInstructionNode, false);
+    }
+
+    private static showChooseMatchingItemInstruction() {
+        const tutorialNode = GridController.globalTutorialInstructionNode;
+        if (tutorialNode?.isValid) {
+            const opacity = tutorialNode.getComponent(UIOpacity);
+            Tween.stopAllByTarget(tutorialNode);
+            if (opacity) {
+                Tween.stopAllByTarget(opacity);
+                opacity.opacity = GridController.tutorialInstructionOriginalOpacity;
+            }
+            tutorialNode.setScale(GridController.tutorialInstructionOriginalScale);
+            tutorialNode.active = false;
+        }
+        GridController.setInstructionNodeVisible(GridController.globalChooseMatchingItemInstructionNode, true);
+    }
+
+    private static hideTapSuspectInstruction() {
+        const node = GridController.globalTutorialInstructionNode;
+        if (!node?.isValid) return;
+
+        const opacity = node.getComponent(UIOpacity) || node.addComponent(UIOpacity);
+        const originalScale = GridController.tutorialInstructionOriginalScale.clone();
+        Tween.stopAllByTarget(node);
+        Tween.stopAllByTarget(opacity);
+
+        tween(opacity)
+            .to(0.16, { opacity: 0 }, { easing: 'sineIn' })
+            .start();
+
+        tween(node)
+            .to(0.16, {
+                scale: v3(originalScale.x * 0.97, originalScale.y * 0.97, originalScale.z)
+            }, { easing: 'sineIn' })
+            .call(() => {
+                if (!node.isValid) return;
+                node.active = false;
+                node.setScale(originalScale);
+                opacity.opacity = GridController.tutorialInstructionOriginalOpacity;
+            })
+            .start();
+    }
+
+    private static hideChooseMatchingItemInstruction() {
+        GridController.setInstructionNodeVisible(GridController.globalChooseMatchingItemInstructionNode, false);
     }
 
     private getColumnSize(columnKey: string): number {
@@ -915,6 +1056,10 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             GridController.globalHandNode = null;
             GridController.openingTutorialOverlay = null;
             GridController.openingTutorialGlow = null;
+            GridController.globalTutorialInstructionNode = null;
+            GridController.globalChooseMatchingItemInstructionNode = null;
+            GridController.tutorialInstructionOriginalScale = v3(1, 1, 1);
+            GridController.tutorialInstructionOriginalOpacity = 255;
             GridController.globalCtaEndScreen = null;
             GridController.bgmSource = null!;
             GridController.fxSource = null!;
@@ -1046,6 +1191,17 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
             this.tutorialOverlay.active = false;
         }
         if (this.tutorialGlow?.isValid) GridController.openingTutorialGlow = this.tutorialGlow;
+        if (this.tutorialInstructionNode?.isValid) {
+            GridController.globalTutorialInstructionNode = this.tutorialInstructionNode;
+            GridController.tutorialInstructionOriginalScale = this.tutorialInstructionNode.scale.clone();
+            GridController.tutorialInstructionOriginalOpacity =
+                this.tutorialInstructionNode.getComponent(UIOpacity)?.opacity ?? 255;
+            GridController.setInstructionNodeVisible(this.tutorialInstructionNode, false);
+        }
+        if (this.chooseMatchingItemInstructionNode?.isValid) {
+            GridController.globalChooseMatchingItemInstructionNode = this.chooseMatchingItemInstructionNode;
+            GridController.setInstructionNodeVisible(this.chooseMatchingItemInstructionNode, false);
+        }
         if (this.guideNode) {
             this.guideNode.active = false;
             this.guideNode.setScale(v3(0, 0, 0));
@@ -1478,6 +1634,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         GridController.personTutorialPhaseActive = true;
         GridController.personTutorialPhaseComplete = false;
         GridController.personTutorialNode = personNode;
+        GridController.showTapSuspectInstruction();
         this.showHandOnPersonNode(personNode);
     }
     
@@ -1542,6 +1699,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         GridController.personTutorialPhaseActive = false;
         GridController.personTutorialPhaseComplete = true;
         GridController.personTutorialNode = null;
+        GridController.hideTapSuspectInstruction();
         
         // Show the clue immediately on tap; start the grid tutorial a moment later.
         this.scheduleOnce(() => {
@@ -1556,6 +1714,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
         GridController.personTutorialPhaseComplete = true;
         GridController.personTutorialNode = null;
         GridController.isHandShowing = false;
+        GridController.showChooseMatchingItemInstruction();
         
         const firstBox = GridController.allBoxes.find(b => b.node.name === "1") || GridController.allBoxes.find(b => !b.isSolved);
         if (firstBox && !firstBox.isSolved) {
@@ -2317,6 +2476,8 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
         if (this.selectionTimerBar) Tween.stopAllByTarget(this.selectionTimerBar);
         const clickedNode = event.target as Node;
         if (!clickedNode.active || this.isMenuItemCompleted(clickedNode)) return;
+
+        GridController.hideChooseMatchingItemInstruction();
 
         const clickedIdentity = this.getAssignedItemIdentity(clickedNode);
         if (clickedIdentity === this.correctItemName) this.handleSuccessMove(clickedNode);
