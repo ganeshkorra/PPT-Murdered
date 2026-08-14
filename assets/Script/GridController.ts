@@ -449,7 +449,11 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     private getColumnSize(columnKey: string): number {
-        return GridController.allBoxes.filter(box => box.getColumnKey() === columnKey).length;
+        // Empty cells are structural gaps and can never enter the solved state.
+        // Only playable cells should contribute to column completion.
+        return GridController.allBoxes.filter(box =>
+            box.getColumnKey() === columnKey && !box.isEmptyCell()
+        ).length;
     }
 
     private revealDecorationForPlacedItem() {
@@ -733,13 +737,16 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
     }
 
     private showColumnCompletionDecoration(columnKey: string) {
-        const solvedBoxes = GridController.allBoxes.filter(box => box.isSolved && box.getColumnKey() === columnKey);
+        const columnBoxes = GridController.allBoxes.filter(box => box.getColumnKey() === columnKey);
+
+        // The placement/final decoration pair represents the whole column, so
+        // transition every cell—including structural empty cells—once all of the
+        // playable cells in that column are solved.
+        columnBoxes.forEach(box => box.playColumnCompletionDecorationTransition());
+
+        const solvedBoxes = columnBoxes.filter(box => box.isSolved);
 
         solvedBoxes.forEach(box => {
-            // A cell's placement decoration is shown as soon as that cell is solved.
-            // Once the column is complete, replace it with the final decoration.
-            box.playColumnCompletionDecorationTransition();
-
             if (!box.decorationNode?.isValid) return;
 
             Tween.stopAllByTarget(box.decorationNode);
@@ -2499,9 +2506,8 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
             const solvedCount = GridController.incrementColumnCompletion(columnKey);
             GridController.incrementRowCompletion(this.getRowKey());
             GridController.revealEligibleEmptyCells();
-            const columnSize = this.getColumnSize(columnKey);
-            // Require full column completion (all cells) before showing final decoration
-            const requiredCompletion = columnSize;
+            // Empty cells cannot be solved, so completion is based on playable cells only.
+            const requiredCompletion = this.getColumnSize(columnKey);
 
 
             if (solvedCount >= requiredCompletion && !GridController.completedColumnDecorations.has(columnKey)) {

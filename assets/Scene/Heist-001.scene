@@ -2100,8 +2100,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 456.02728271484375,
-      "height": 87.23599999999999
+      "width": 460.49078369140625,
+      "height": 125.836
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -2130,7 +2130,7 @@
       "b": 0,
       "a": 255
     },
-    "_string": "Room A has a refrigerator\nand a circular window",
+    "_string": "I'm in Room A has a \nrefrigerator and a circular \nwindow",
     "_horizontalAlign": 0,
     "_verticalAlign": 1,
     "_actualFontSize": 39.5,
