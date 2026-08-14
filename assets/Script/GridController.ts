@@ -216,6 +216,7 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
 
 
     private originalGridScale: Vec3 = v3(1, 1, 1);
+    private isEmptyCellShaking: boolean = false;
     private originalHintScale: Vec3 = v3(0.565, 0.565, 0.565);
     private hintDesignSize: { width: number, height: number } = { width: 0, height: 0 };
     private originalMenuItemScale: Vec3 = v3(1, 1, 1);
@@ -2077,7 +2078,11 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
         }
         
         if (GridController.isIntroPlaying || GridController.isGameOver || this.isSolved) return;
-        // Empty cells intentionally have no selection menu and must not open one.
+        // Empty cells do not open a selection menu; they only give wrong-tap feedback.
+        if (this.isEmptyCell()) {
+            this.playEmptyCellWrongFeedback();
+            return;
+        }
         if (!this.selectionMenu?.isValid) return;
         // --- NEW: Track User Taps ---
         this.checkTapProgress();
@@ -2138,6 +2143,61 @@ private manualStitchArc(g: Graphics, cx: number, cy: number, r: number, startDeg
             }
             //   this.startMenuTimer();
         }).start();
+    }
+
+    private playEmptyCellWrongFeedback() {
+        // Ignore extra taps until this short shake finishes so overlapping tweens
+        // cannot move the authored grid position.
+        if (this.isEmptyCellShaking || !this.node?.isValid) return;
+
+        this.isEmptyCellShaking = true;
+        GridController.idleTimer = 0;
+
+        const originalPosition = this.node.position.clone();
+        const wrongClip = this.wrongMatchClip
+            || GridController.allBoxes.find(box => !!box.wrongMatchClip)?.wrongMatchClip;
+        if (wrongClip && GridController.fxSource) {
+            GridController.fxSource.playOneShot(wrongClip, 1);
+        }
+
+        // Empty cells have no sprite frame at the start, so tinting their Sprite
+        // would be invisible. Draw a short-lived translucent red fill instead.
+        const cellTransform = this.node.getComponent(UITransform);
+        const wrongTint = cellTransform ? new Node("EmptyCellWrongTint") : null;
+        if (wrongTint && cellTransform) {
+            this.node.addChild(wrongTint);
+            wrongTint.setPosition(Vec3.ZERO);
+            wrongTint.addComponent(UITransform).setContentSize(cellTransform.contentSize);
+
+            const tintGraphics = wrongTint.addComponent(Graphics);
+            const inset = 3;
+            const width = Math.max(0, cellTransform.contentSize.width - inset * 2);
+            const height = Math.max(0, cellTransform.contentSize.height - inset * 2);
+            tintGraphics.fillColor = new Color(255, 90, 95, 255);
+            tintGraphics.rect(-width / 2, -height / 2, width, height);
+            tintGraphics.fill();
+
+            const tintOpacity = wrongTint.addComponent(UIOpacity);
+            tintOpacity.opacity = 0;
+            tween(tintOpacity)
+                .to(0.06, { opacity: 125 }, { easing: 'sineOut' })
+                .delay(0.105)
+                .to(0.06, { opacity: 0 }, { easing: 'sineIn' })
+                .start();
+        }
+
+        tween(this.node)
+            .by(0.045, { position: v3(-10, 0, 0) }, { easing: 'sineInOut' })
+            .by(0.045, { position: v3(20, 0, 0) }, { easing: 'sineInOut' })
+            .by(0.045, { position: v3(-20, 0, 0) }, { easing: 'sineInOut' })
+            .by(0.045, { position: v3(20, 0, 0) }, { easing: 'sineInOut' })
+            .by(0.045, { position: v3(-10, 0, 0) }, { easing: 'sineInOut' })
+            .call(() => {
+                if (wrongTint?.isValid) wrongTint.destroy();
+                if (this.node?.isValid) this.node.setPosition(originalPosition);
+                this.isEmptyCellShaking = false;
+            })
+            .start();
     }
 
     private positionSelectionMenuNearGridCell() {
