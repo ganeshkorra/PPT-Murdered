@@ -782,14 +782,10 @@ highlightBar: ProgressBar = null!; // Link this to the 'Highlight Text' node in 
                 const downRodDelay = rods.length * 0.1 + 0.12;
                 this.scheduleOnce(() => {
                     this.revealPrisonNode(downRod, 0.25, () => {
-                        tween(prisonOpacity)
-                            .to(0.4, { opacity: 0 }, { easing: 'sineIn' })
-                            .call(() => {
-                                if (prison.isValid) prison.active = false;
-                                prisonOpacity.opacity = 255;
-                                onComplete();
-                            })
-                            .start();
+                        // Keep the prison fully visible behind the CTA while the end card
+                        // scales in. Hiding/fading it first exposes the gameplay field for
+                        // a few frames between the two screens.
+                        onComplete();
                     });
                 }, downRodDelay);
             });
@@ -3090,11 +3086,13 @@ private executeVoiceCall() {
         Analytics.instance?.dispatchEvent(reason === "WIN" ? analyticsEvents.CHALLENGE_SOLVED : analyticsEvents.CHALLENGE_FAILED);
 
         if (reason === "WIN") {
-            this.playPrisonWinSequence(() => this.triggerGameEndCTA(reason));
+            this.playPrisonWinSequence(() => {
+                this.triggerGameEndCTA(() => this.preparePrisonSequence());
+            });
             return;
         }
 
-        this.triggerGameEndCTA(reason);
+        this.triggerGameEndCTA();
     }
 
     /** Called by the suspect marked as guilty to use the normal winning CTA flow. */
@@ -3120,27 +3118,40 @@ private executeVoiceCall() {
             .start();
     }
 
-    private triggerGameEndCTA(reason: string) {
-        // The prison sequence must be completely gone before the end card appears.
-        if (reason === "WIN") this.preparePrisonSequence();
-        const delay = reason === "WIN" ? 0 : 0;
-        this.scheduleOnce(() => {
-            const endScreen = GridController.globalCtaEndScreen || this.ctaEndScreen || director.getScene()?.getChildByPath("Canvas/CTA");
+    private triggerGameEndCTA(onEndScreenCovered?: () => void) {
+        const endScreen = GridController.globalCtaEndScreen || this.ctaEndScreen || director.getScene()?.getChildByPath("Canvas/CTA");
 
-            if (endScreen) {
-                Analytics.instance?.dispatchEvent(analyticsEvents.ENDCARD_SHOWN);
-                endScreen.active = true;
-                endScreen.setScale(v3(0, 0, 0));
-                endScreen.setSiblingIndex(999);
-                tween(endScreen).to(0.5, { scale: v3(1, 1, 1) }, { easing: 'backOut' }).start();
-            } else {
-                const ctaButtonNode = director.getScene()?.getChildByPath("Canvas/CTA/play_now_pink-removebg-preview");
-                const ctaHandler = ctaButtonNode?.getComponent(CTAButtonHandler);
-                if (ctaHandler) {
-                    ctaHandler.onStoreButtonClicked();
-                }
+        if (endScreen) {
+            Analytics.instance?.dispatchEvent(analyticsEvents.ENDCARD_SHOWN);
+            // Keep the CTA root (including its full-screen Overlay) at full size
+            // from the first frame. Scaling the root from zero makes the prison
+            // appear above/around the CTA until that tween is nearly complete.
+            endScreen.setScale(v3(1, 1, 1));
+            endScreen.setSiblingIndex(999);
+
+            const animatedContent = endScreen.children.filter(child => child.name !== "Overlay");
+            const targetScales = animatedContent.map(child => child.scale.clone());
+            animatedContent.forEach((child, index) => {
+                Tween.stopAllByTarget(child);
+                child.setScale(v3(0, 0, targetScales[index].z));
+            });
+
+            endScreen.active = true;
+            onEndScreenCovered?.();
+
+            animatedContent.forEach((child, index) => {
+                tween(child)
+                    .to(0.5, { scale: targetScales[index] }, { easing: 'backOut' })
+                    .start();
+            });
+        } else {
+            onEndScreenCovered?.();
+            const ctaButtonNode = director.getScene()?.getChildByPath("Canvas/CTA/play_now_pink-removebg-preview");
+            const ctaHandler = ctaButtonNode?.getComponent(CTAButtonHandler);
+            if (ctaHandler) {
+                ctaHandler.onStoreButtonClicked();
             }
-        }, delay);
+        }
     }
 
     public closeSelectionMenu() {
